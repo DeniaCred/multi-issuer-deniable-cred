@@ -85,26 +85,26 @@ COMPONENT_ORDER = [
     "verifyPresentationPayload_total_simulated",
 ]
 COMPONENT_LABELS = {
-    "aggregatePublicKeys": "内部聚合公钥",
+    "aggregatePublicKeys": "Internal aggregate public key",
     "issueCredential": "Issue credential",
-    "verifySignature": "聚合签名验证",
-    "computeUserApk": "用户apk计算",
-    "TACert": "TA担保签发",
-    "randomizeTACredential": "TA担保随机化",
-    "blindCredential": "聚合凭证盲化",
-    "verifyRandomizedTACredential": "TA凭证验证",
-    "verifyRandomizedTACredential_standalone": "TA凭证单独验证",
-    "verifyRandomizedTACredential_real": "真实展示TA验证",
-    "verifyRandomizedTACredential_simulated": "模拟展示TA验证",
-    "generatePresentationPayload": "展示生成",
-    "verifyORProof": "OR证明验证",
-    "verifyORProof_real": "真实展示OR验证",
-    "verifyORProof_simulated": "模拟展示OR验证",
-    "verifyBlindedAggregateCredential_real": "真实展示盲化凭证验证",
-    "verifyBlindedAggregateCredential_simulated": "模拟展示盲化凭证验证",
-    "verifyPresentationPayload_total_real": "真实完整展示验证",
-    "verifyPresentationPayload_total_simulated": "模拟完整展示验证",
-    "simulatePresentationPayloadByVerifier": "可否认模拟生成",
+    "verifySignature": "Aggregate signature verification",
+    "computeUserApk": "User apk computation",
+    "TACert": "TA attestation issuance",
+    "randomizeTACredential": "TA attestation randomization",
+    "blindCredential": "Aggregate credential blinding",
+    "verifyRandomizedTACredential": "TA attestation verification",
+    "verifyRandomizedTACredential_standalone": "Standalone TA attestation verification",
+    "verifyRandomizedTACredential_real": "Real presentation TA verification",
+    "verifyRandomizedTACredential_simulated": "Simulated presentation TA verification",
+    "generatePresentationPayload": "Presentation generation",
+    "verifyORProof": "OR proof verification",
+    "verifyORProof_real": "Real presentation OR proof verification",
+    "verifyORProof_simulated": "Simulated presentation OR proof verification",
+    "verifyBlindedAggregateCredential_real": "Real presentation blinded credential verification",
+    "verifyBlindedAggregateCredential_simulated": "Simulated presentation blinded credential verification",
+    "verifyPresentationPayload_total_real": "Real full presentation verification",
+    "verifyPresentationPayload_total_simulated": "Simulated full presentation verification",
+    "simulatePresentationPayloadByVerifier": "Deniable simulation generation",
 }
 
 COMPONENT_LABELS.update(
@@ -193,30 +193,30 @@ SUMMARY_FIELDNAMES = [
 ]
 
 COMBINED_COLUMNS = [
-    ("record_type", "record_type/记录类型"),
-    ("experiment_id", "experiment_id/实验编号"),
-    ("run_started_at", "run_started_at/运行开始时间"),
-    ("notes", "notes/备注"),
-    ("scheme", "scheme/方案"),
-    ("num_attrs", "num_attrs/属性数量"),
-    ("num_issuers", "num_issuers/签发方总数"),
-    ("num_other_issuers", "num_other_issuers/其他签发方数量"),
-    ("num_disclosed", "num_disclosed/披露属性数量"),
-    ("phase", "phase/阶段"),
-    ("component", "component/组件"),
-    ("run_id", "run_id/运行编号"),
-    ("time_ms", "time_ms/本次耗时毫秒"),
-    ("runs", "runs/有效运行次数"),
-    ("mean_ms", "mean_ms/平均耗时毫秒"),
-    ("median_ms", "median_ms/中位耗时毫秒"),
-    ("std_ms", "std_ms/标准差毫秒"),
-    ("min_ms", "min_ms/最小耗时毫秒"),
-    ("max_ms", "max_ms/最大耗时毫秒"),
-    ("credential_bytes", "credential_bytes/凭证字节"),
-    ("proof_bytes", "proof_bytes/证明字节"),
-    ("public_key_bytes", "public_key_bytes/公钥字节"),
-    ("signature_bytes", "signature_bytes/签名字节"),
-    ("transcript_bytes", "transcript_bytes/展示记录字节"),
+    ("record_type", "record_type/record type"),
+    ("experiment_id", "experiment_id/experiment id"),
+    ("run_started_at", "run_started_at/run started at"),
+    ("notes", "notes/notes"),
+    ("scheme", "scheme/scheme"),
+    ("num_attrs", "num_attrs/attribute count"),
+    ("num_issuers", "num_issuers/issuer count"),
+    ("num_other_issuers", "num_other_issuers/other issuer count"),
+    ("num_disclosed", "num_disclosed/disclosed attribute count"),
+    ("phase", "phase/phase"),
+    ("component", "component/component"),
+    ("run_id", "run_id/run id"),
+    ("time_ms", "time_ms/elapsed milliseconds"),
+    ("runs", "runs/valid run count"),
+    ("mean_ms", "mean_ms/mean milliseconds"),
+    ("median_ms", "median_ms/median milliseconds"),
+    ("std_ms", "std_ms/stddev milliseconds"),
+    ("min_ms", "min_ms/min milliseconds"),
+    ("max_ms", "max_ms/max milliseconds"),
+    ("credential_bytes", "credential_bytes/credential bytes"),
+    ("proof_bytes", "proof_bytes/proof bytes"),
+    ("public_key_bytes", "public_key_bytes/public key bytes"),
+    ("signature_bytes", "signature_bytes/signature bytes"),
+    ("transcript_bytes", "transcript_bytes/presentation transcript bytes"),
 ]
 def insert_column_specs(columns, insertions):
     updated = []
@@ -248,29 +248,29 @@ COMBINED_COLUMNS = insert_column_specs(
 COMBINED_FIELDNAMES = [label for _, label in COMBINED_COLUMNS]
 
 SUMMARY_WIDE_METADATA_COLUMNS = [
-    ("experiment_id", "experiment_id/实验编号"),
-    ("run_started_at", "run_started_at/运行开始时间"),
-    ("notes", "notes/备注"),
+    ("experiment_id", "experiment_id/experiment id"),
+    ("run_started_at", "run_started_at/run started at"),
+    ("notes", "notes/notes"),
 ]
 SUMMARY_WIDE_BASE_COLUMNS = [
-    ("scheme", "scheme/方案"),
-    ("num_attrs", "num_attrs/属性数量"),
-    ("num_issuers", "num_issuers/签发方总数"),
-    ("num_other_issuers", "num_other_issuers/其他签发方数量"),
-    ("num_disclosed", "num_disclosed/披露属性数量"),
+    ("scheme", "scheme/scheme"),
+    ("num_attrs", "num_attrs/attribute count"),
+    ("num_issuers", "num_issuers/issuer count"),
+    ("num_other_issuers", "num_other_issuers/other issuer count"),
+    ("num_disclosed", "num_disclosed/disclosed attribute count"),
 ]
 SUMMARY_WIDE_SIZE_COLUMNS = [
-    ("credential_bytes", "credential_bytes/凭证字节"),
-    ("proof_bytes", "proof_bytes/证明字节"),
-    ("public_key_bytes", "public_key_bytes/公钥字节"),
-    ("apk_user_visible_bytes", "apk_user_visible_bytes/用户可见聚合公钥字节"),
-    ("internal_pk_directory_bytes", "internal_pk_directory_bytes/系统内部公钥目录字节"),
-    ("ta_credential_bytes", "ta_credential_bytes/TA担保字节"),
-    ("holder_binding_bytes", "holder_binding_bytes/持有者绑定字节"),
-    ("signature_bytes", "signature_bytes/签名字节"),
-    ("transcript_bytes", "transcript_bytes/展示记录字节"),
-    ("transcript_bytes_compact", "transcript_bytes_compact/紧凑展示转录字节"),
-    ("transcript_bytes_serialized", "transcript_bytes_serialized/直接序列化展示转录字节"),
+    ("credential_bytes", "credential_bytes/credential bytes"),
+    ("proof_bytes", "proof_bytes/proof bytes"),
+    ("public_key_bytes", "public_key_bytes/public key bytes"),
+    ("apk_user_visible_bytes", "apk_user_visible_bytes/user-visible aggregate public key bytes"),
+    ("internal_pk_directory_bytes", "internal_pk_directory_bytes/internal public-key directory bytes"),
+    ("ta_credential_bytes", "ta_credential_bytes/TA attestation bytes"),
+    ("holder_binding_bytes", "holder_binding_bytes/holder binding bytes"),
+    ("signature_bytes", "signature_bytes/signature bytes"),
+    ("transcript_bytes", "transcript_bytes/presentation transcript bytes"),
+    ("transcript_bytes_compact", "transcript_bytes_compact/compact presentation transcript bytes"),
+    ("transcript_bytes_serialized", "transcript_bytes_serialized/direct serialized presentation transcript bytes"),
 ]
 SUMMARY_WIDE_SIZE_COLUMNS.extend(
     [
@@ -282,9 +282,9 @@ SUMMARY_WIDE_SIZE_COLUMNS.extend(
 )
 
 SUMMARY_WIDE_METRICS = [
-    ("runs", "样本数"),
-    ("mean_ms", "平均耗时毫秒"),
-    ("std_ms", "标准差毫秒"),
+    ("runs", "sample count"),
+    ("mean_ms", "mean milliseconds"),
+    ("std_ms", "stddev milliseconds"),
 ]
 
 
@@ -303,37 +303,37 @@ SUMMARY_WIDE_METRICS = insert_column_specs(
 
 
 EXCEL_COLUMNS = [
-    ("experiment_id", "experiment_id/实验编号"),
-    ("run_started_at", "run_started_at/运行开始时间"),
-    ("notes", "notes/备注"),
-    ("warmup_runs", "warmup_runs/预热次数"),
-    ("scheme", "scheme/方案"),
-    ("num_attrs", "num_attrs/属性数量"),
-    ("num_issuers", "num_issuers/签发方总数"),
-    ("num_other_issuers", "num_other_issuers/其他签发方数量"),
-    ("num_disclosed", "num_disclosed/披露属性数量"),
-    ("signature_size_bytes", "signature_size_bytes/签名大小字节"),
-    ("issue_total_time_ms", "issue_total_time_ms/签名时间_多签发方总耗时毫秒"),
-    ("issue_total_runs", "issue_total_runs/签名时间有效运行次数"),
-    ("issue_total_std_ms", "issue_total_std_ms/签名时间标准差毫秒"),
-    ("issue_total_min_ms", "issue_total_min_ms/签名时间最小耗时毫秒"),
-    ("issue_total_max_ms", "issue_total_max_ms/签名时间最大耗时毫秒"),
-    ("raw_signature_verify_time_ms", "raw_signature_verify_time_ms/原始签名验证时间毫秒"),
-    ("raw_signature_verify_runs", "raw_signature_verify_runs/原始签名验证有效运行次数"),
-    ("raw_signature_verify_std_ms", "raw_signature_verify_std_ms/原始签名验证标准差毫秒"),
-    ("raw_signature_verify_min_ms", "raw_signature_verify_min_ms/原始签名验证最小耗时毫秒"),
-    ("raw_signature_verify_max_ms", "raw_signature_verify_max_ms/原始签名验证最大耗时毫秒"),
-    ("proof_size_bytes", "proof_size_bytes/证明大小字节"),
-    ("proof_generation_time_ms", "proof_generation_time_ms/证明生成时间毫秒"),
-    ("proof_generation_runs", "proof_generation_runs/证明生成有效运行次数"),
-    ("proof_generation_std_ms", "proof_generation_std_ms/证明生成标准差毫秒"),
-    ("proof_generation_min_ms", "proof_generation_min_ms/证明生成最小耗时毫秒"),
-    ("proof_generation_max_ms", "proof_generation_max_ms/证明生成最大耗时毫秒"),
-    ("proof_verification_time_ms", "proof_verification_time_ms/证明验证时间毫秒"),
-    ("proof_verification_runs", "proof_verification_runs/证明验证有效运行次数"),
-    ("proof_verification_std_ms", "proof_verification_std_ms/证明验证标准差毫秒"),
-    ("proof_verification_min_ms", "proof_verification_min_ms/证明验证最小耗时毫秒"),
-    ("proof_verification_max_ms", "proof_verification_max_ms/证明验证最大耗时毫秒"),
+    ("experiment_id", "experiment_id/experiment id"),
+    ("run_started_at", "run_started_at/run started at"),
+    ("notes", "notes/notes"),
+    ("warmup_runs", "warmup_runs/warmup runs"),
+    ("scheme", "scheme/scheme"),
+    ("num_attrs", "num_attrs/attribute count"),
+    ("num_issuers", "num_issuers/issuer count"),
+    ("num_other_issuers", "num_other_issuers/other issuer count"),
+    ("num_disclosed", "num_disclosed/disclosed attribute count"),
+    ("signature_size_bytes", "signature_size_bytes/signature size bytes"),
+    ("issue_total_time_ms", "issue_total_time_ms/multi-issuer issue time milliseconds"),
+    ("issue_total_runs", "issue_total_runs/issue valid run count"),
+    ("issue_total_std_ms", "issue_total_std_ms/issue stddev milliseconds"),
+    ("issue_total_min_ms", "issue_total_min_ms/issue min milliseconds"),
+    ("issue_total_max_ms", "issue_total_max_ms/issue max milliseconds"),
+    ("raw_signature_verify_time_ms", "raw_signature_verify_time_ms/raw signature verification milliseconds"),
+    ("raw_signature_verify_runs", "raw_signature_verify_runs/raw signature verification valid run count"),
+    ("raw_signature_verify_std_ms", "raw_signature_verify_std_ms/raw signature verification stddev milliseconds"),
+    ("raw_signature_verify_min_ms", "raw_signature_verify_min_ms/raw signature verification min milliseconds"),
+    ("raw_signature_verify_max_ms", "raw_signature_verify_max_ms/raw signature verification max milliseconds"),
+    ("proof_size_bytes", "proof_size_bytes/proof size bytes"),
+    ("proof_generation_time_ms", "proof_generation_time_ms/proof generation milliseconds"),
+    ("proof_generation_runs", "proof_generation_runs/proof generation valid run count"),
+    ("proof_generation_std_ms", "proof_generation_std_ms/proof generation stddev milliseconds"),
+    ("proof_generation_min_ms", "proof_generation_min_ms/proof generation min milliseconds"),
+    ("proof_generation_max_ms", "proof_generation_max_ms/proof generation max milliseconds"),
+    ("proof_verification_time_ms", "proof_verification_time_ms/proof verification milliseconds"),
+    ("proof_verification_runs", "proof_verification_runs/proof verification valid run count"),
+    ("proof_verification_std_ms", "proof_verification_std_ms/proof verification stddev milliseconds"),
+    ("proof_verification_min_ms", "proof_verification_min_ms/proof verification min milliseconds"),
+    ("proof_verification_max_ms", "proof_verification_max_ms/proof verification max milliseconds"),
 ]
 EXCEL_COLUMNS = insert_column_specs(
     EXCEL_COLUMNS,
@@ -714,9 +714,9 @@ def write_combined_csv(path, raw_rows, summary_rows, experiment_id="", run_start
         *(to_combined_row("summary", row) for row in summary_rows),
     ]
     for row in rows:
-        row["experiment_id/实验编号"] = experiment_id
-        row["run_started_at/运行开始时间"] = run_started_at
-        row["notes/备注"] = notes
+        row["experiment_id/experiment id"] = experiment_id
+        row["run_started_at/run started at"] = run_started_at
+        row["notes/notes"] = notes
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8-sig") as handle:
         writer = csv.DictWriter(handle, fieldnames=COMBINED_FIELDNAMES)
@@ -731,7 +731,7 @@ def summary_wide_fieldnames(components=None):
     for component in selected_components:
         label = COMPONENT_LABELS.get(component, component)
         for metric, metric_label in SUMMARY_WIDE_METRICS:
-            fieldnames.append(f"{component}_{metric}/{label}{metric_label}")
+            fieldnames.append(f"{component}_{metric}/{label} {metric_label}")
     fieldnames.extend(label for _, label in SUMMARY_WIDE_SIZE_COLUMNS)
     return fieldnames
 
@@ -754,7 +754,7 @@ def build_summary_wide_rows(summary_rows, components=None):
             continue
         component_label = COMPONENT_LABELS.get(row["component"], row["component"])
         for metric, metric_label in SUMMARY_WIDE_METRICS:
-            groups[key][f"{row['component']}_{metric}/{component_label}{metric_label}"] = row[metric]
+            groups[key][f"{row['component']}_{metric}/{component_label} {metric_label}"] = row[metric]
 
     fieldnames = summary_wide_fieldnames(selected_components)
     wide_rows = []
@@ -774,9 +774,9 @@ def write_summary_wide_csv(
     fieldnames = summary_wide_fieldnames(components)
     rows = build_summary_wide_rows(summary_rows, components)
     for row in rows:
-        row["experiment_id/实验编号"] = experiment_id
-        row["run_started_at/运行开始时间"] = run_started_at
-        row["notes/备注"] = notes
+        row["experiment_id/experiment id"] = experiment_id
+        row["run_started_at/run started at"] = run_started_at
+        row["notes/notes"] = notes
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8-sig") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -798,9 +798,9 @@ def append_summary_wide_csv(
     fieldnames = summary_wide_fieldnames(components)
     rows = build_summary_wide_rows(summary_rows, components)
     for row in rows:
-        row["experiment_id/实验编号"] = experiment_id
-        row["run_started_at/运行开始时间"] = run_started_at
-        row["notes/备注"] = notes
+        row["experiment_id/experiment id"] = experiment_id
+        row["run_started_at/run started at"] = run_started_at
+        row["notes/notes"] = notes
 
     path.parent.mkdir(parents=True, exist_ok=True)
     existing_rows = []

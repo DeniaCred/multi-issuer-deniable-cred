@@ -71,7 +71,7 @@ class TheoreticalEstimateTests(unittest.TestCase):
     def test_reads_unit_costs_and_dimensions_from_workbooks(self):
         unit_rows = [
             {
-                "unit_id": "T_E1：G1标量乘",
+                "unit_id": "T_E1: G1 scalar multiplication",
                 "unit_name": "G1 scalar multiplication",
                 "operation": "pfc.mult(G1, scalar)",
                 "samples": 3,
@@ -85,11 +85,11 @@ class TheoreticalEstimateTests(unittest.TestCase):
             }
         ]
         performance_headers = [
-            "scheme/方案",
-            "num_attrs/属性数量",
-            "num_issuers/签发方总数",
-            "num_other_issuers/其他签发方数量",
-            "num_disclosed/披露属性数量",
+            "scheme/scheme",
+            "num_attrs/attribute count",
+            "num_issuers/issuer count",
+            "num_other_issuers/other issuer count",
+            "num_disclosed/disclosed attribute count",
         ]
         performance_rows = [["OurScheme", 2, 5, 3, 0]]
 
@@ -141,16 +141,16 @@ class TheoreticalEstimateTests(unittest.TestCase):
                 comparison_xml = workbook_zip.read("xl/worksheets/sheet1.xml").decode("utf-8")
                 formulas_xml = workbook_zip.read("xl/worksheets/sheet3.xml").decode("utf-8")
 
-        self.assertIn("理论对比", workbook_xml)
-        self.assertIn("使用的单位耗时", workbook_xml)
-        self.assertIn("操作数公式", workbook_xml)
-        self.assertIn("签名大小字节", comparison_xml)
-        self.assertIn("签名时间_多签发方总耗时毫秒", comparison_xml)
-        self.assertIn("独立签发方", comparison_xml)
-        self.assertIn("说明", formulas_xml)
-        self.assertIn("证明大小按", formulas_xml)
+        self.assertIn("Theoretical comparison", workbook_xml)
+        self.assertIn("Unit costs used", workbook_xml)
+        self.assertIn("Operation-count formulas", workbook_xml)
+        self.assertIn("signature size bytes", comparison_xml)
+        self.assertIn("multi-issuer issue time milliseconds", comparison_xml)
+        self.assertIn("independent issuers", comparison_xml)
+        self.assertIn("notes", formulas_xml)
+        self.assertIn("Proof size is estimated", formulas_xml)
         self.assertNotIn("signature_size_bytes", comparison_xml)
-        self.assertNotIn("independent issuers", comparison_xml)
+        self.assertNotIn("issuer_model", comparison_xml)
         self.assertNotIn("Approximation", formulas_xml)
 
 

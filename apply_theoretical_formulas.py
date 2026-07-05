@@ -19,74 +19,74 @@ GROUP_BYTES = {
 }
 
 COMPARISON_COLUMNS = [
-    ("scheme", "方案"),
-    ("num_attrs", "属性数量"),
-    ("num_issuers", "签发方总数"),
-    ("num_other_issuers", "其他签发方数量"),
-    ("num_disclosed", "披露属性数量"),
-    ("issuer_model", "签发方模型"),
-    ("signature_size_bytes", "签名大小字节"),
-    ("issue_total_time_ms", "签名时间_多签发方总耗时毫秒"),
-    ("raw_signature_verify_time_ms", "原始签名验证时间毫秒"),
-    ("proof_size_bytes", "证明大小字节"),
-    ("proof_generation_time_ms", "证明生成时间毫秒"),
-    ("proof_verification_time_ms", "证明验证时间毫秒"),
-    ("signature_size_formula", "签名大小公式"),
-    ("issue_time_formula", "签名时间公式"),
-    ("raw_verify_time_formula", "原始签名验证时间公式"),
-    ("proof_size_formula", "证明大小公式"),
-    ("proof_generation_time_formula", "证明生成时间公式"),
-    ("proof_verification_time_formula", "证明验证时间公式"),
-    ("notes", "说明"),
+    ("scheme", "scheme"),
+    ("num_attrs", "attribute count"),
+    ("num_issuers", "issuer count"),
+    ("num_other_issuers", "other issuer count"),
+    ("num_disclosed", "disclosed attribute count"),
+    ("issuer_model", "issuer model"),
+    ("signature_size_bytes", "signature size bytes"),
+    ("issue_total_time_ms", "multi-issuer issue time milliseconds"),
+    ("raw_signature_verify_time_ms", "raw signature verification milliseconds"),
+    ("proof_size_bytes", "proof size bytes"),
+    ("proof_generation_time_ms", "proof generation milliseconds"),
+    ("proof_verification_time_ms", "proof verification milliseconds"),
+    ("signature_size_formula", "signature size formula"),
+    ("issue_time_formula", "issue time formula"),
+    ("raw_verify_time_formula", "raw signature verification time formula"),
+    ("proof_size_formula", "proof size formula"),
+    ("proof_generation_time_formula", "proof generation time formula"),
+    ("proof_verification_time_formula", "proof verification time formula"),
+    ("notes", "notes"),
 ]
 
 UNIT_COSTS_USED_COLUMNS = [
-    ("unit_id", "单位编号"),
-    ("unit_name", "单位名称"),
-    ("mean_ms", "平均耗时毫秒"),
+    ("unit_id", "unit id"),
+    ("unit_name", "unit name"),
+    ("mean_ms", "mean milliseconds"),
 ]
 
 UNIT_COST_LABELS = {
-    "T_E1": "G1标量乘",
-    "T_E2": "G2标量乘",
-    "T_ET": "GT幂运算",
-    "T_P": "单次配对",
-    "T_MP2": "2项多重配对",
-    "T_MP6": "6项多重配对",
-    "T_MP8": "8项多重配对",
-    "T_H": "Fiat-Shamir哈希到标量",
-    "T_H2G1": "哈希映射到G1",
-    "T_H2G2": "哈希映射到G2",
-    "T_INVZ": "标量求逆",
-    "T_RZ": "随机标量生成",
-    "T_R1": "随机G1元素生成",
-    "T_R2": "随机G2元素生成",
-    "T_ZADD": "标量模加",
-    "T_ZMUL": "标量模乘",
+    "T_E1": "G1 scalar multiplication",
+    "T_E2": "G2 scalar multiplication",
+    "T_ET": "GT exponentiation",
+    "T_P": "single pairing",
+    "T_MP2": "2-term multi-pairing",
+    "T_MP6": "6-term multi-pairing",
+    "T_MP8": "8-term multi-pairing",
+    "T_H": "Fiat-Shamir hash to scalar",
+    "T_H2G1": "hash-to-G1 mapping",
+    "T_H2G2": "hash-to-G2 mapping",
+    "T_INVZ": "scalar inversion",
+    "T_RZ": "random scalar generation",
+    "T_R1": "random G1 element generation",
+    "T_R2": "random G2 element generation",
+    "T_ZADD": "scalar modular addition",
+    "T_ZMUL": "scalar modular multiplication",
 }
 
-FORMULA_HEADERS_CN = ["方案", "指标", "操作数公式", "需要的单位耗时", "大小公式", "说明"]
+FORMULA_HEADERS_CN = ["scheme", "metric", "Operation-count formulas", "required unit costs", "size formula", "notes"]
 FORMULA_ROWS_CN = [
-    ["BBS", "签名时间", "(n+2)*T_E1 + T_INVZ + T_H", "T_E1,T_INVZ,T_H", "G1 + Zp", "单个签发方口径；多签发方独立签发时整体乘以q。"],
-    ["BBS", "原始签名验证时间", "(n+2)*T_E1 + T_MP2 + T_H", "T_E1,T_MP2,T_H", "", "使用T_MP2表示2项多重配对，比直接使用2*T_P更贴近当前库实现。"],
-    ["BBS", "证明大小", "", "", "3*G1 + (h+4)*Zp", "证明大小按CFRG草案中的3个G1元素、4个固定标量和h个隐藏属性响应标量估算。"],
-    ["BBS", "证明生成时间", "(n+h+8)*T_E1 + T_INVZ + (h+5)*T_RZ + T_H", "T_E1,T_INVZ,T_RZ,T_H", "", "h=n-d，表示隐藏属性数量。"],
-    ["BBS", "证明验证时间", "(n+6)*T_E1 + T_MP2 + T_H", "T_E1,T_MP2,T_H", "", "包含披露消息重构和最后的配对乘积检查。"],
-    ["BBS+", "签名时间", "T_E1 + 2*T_RZ", "T_E1,T_RZ", "G1 + 2*Zp", "BBS+凭证签名的优化估算口径。"],
-    ["BBS+", "原始签名验证时间", "(n+1)*T_E1 + T_E2 + T_MP2", "T_E1,T_E2,T_MP2", "", "作为可比较的BBS+风格验签模型。"],
-    ["BBS+", "证明大小", "", "", "3*G1 + (h+5)*Zp", "证明大小按比BBS多一个标量响应的近似口径估算。"],
-    ["BBS+", "证明生成时间", "BBS单次证明生成时间 + T_E1 + T_RZ", "T_E1,T_INVZ,T_RZ,T_H", "", "近似模型，论文中应标注为理论估算。"],
-    ["BBS+", "证明验证时间", "BBS单次证明验证时间 + T_E1", "T_E1,T_MP2,T_H", "", "近似模型，论文中应标注为理论估算。"],
-    ["PS", "签名时间", "T_R1 + T_E1", "T_R1,T_E1", "2*G1", "Pointcheval-Sanders多消息签名单个签发方口径；独立多凭证时乘以q。"],
-    ["PS", "原始签名验证时间", "T_MP2 + n*T_E2", "T_MP2,T_E2", "", "对应论文中的2次配对和n次G2指数运算。"],
-    ["PS", "证明大小", "", "", "2*G1 + GT + (h+2)*Zp", "对隐藏消息的知识证明估算口径。"],
-    ["PS", "证明生成时间", "3*T_E1 + (h+2)*T_P + (h+1)*T_ET + T_H", "T_E1,T_P,T_ET,T_H", "", "按隐藏属性相关证明等式估算。"],
-    ["PS", "证明验证时间", "(h+2)*T_P + (h+2)*T_ET + T_H", "T_P,T_ET,T_H", "", "按证明转录验证成本估算。"],
-    ["SPS-EQ", "签名时间", "4*T_E1 + T_E2 + T_INVZ + T_RZ + n*T_ZMUL", "T_E1,T_E2,T_INVZ,T_RZ,T_ZMUL", "凭证：3*G1 + G2 + 2*Zp", "Scheme 2签发/凭证估算；集合承诺中的多项式工作用n*T_ZMUL表示。"],
-    ["SPS-EQ", "原始签名验证时间", "T_MP6", "T_MP6", "", "VerifyR包含配对乘积等式，这里用6项多重配对作为实践单位。"],
-    ["SPS-EQ", "证明大小", "", "", "展示令牌近似：8*G1 + G2 + 2*Zp", "Scheme 2每个组织的展示通信量为常数级。"],
-    ["SPS-EQ", "证明生成时间", "T_MP6 + 8*T_E1 + T_E2 + h*T_ZMUL + T_H", "T_MP6,T_E1,T_E2,T_ZMUL,T_H", "", "展示协议估算；通信量不随属性总数线性增长。"],
-    ["SPS-EQ", "证明验证时间", "T_MP8 + 4*T_E1 + T_E2 + d*T_ZMUL + T_H", "T_MP8,T_E1,T_E2,T_ZMUL,T_H", "", "包含子集打开验证和新鲜性证明验证的估算。"],
+    ["BBS", "issuance time", "(n+2)*T_E1 + T_INVZ + T_H", "T_E1,T_INVZ,T_H", "G1 + Zp", "Single-issuer cost; multiply by q for independent multi-issuer issuance."],
+    ["BBS", "raw signature verification time", "(n+2)*T_E1 + T_MP2 + T_H", "T_E1,T_MP2,T_H", "", "Use T_MP2 for a two-term multi-pairing because it better matches the current library path than 2*T_P."],
+    ["BBS", "proof size", "", "", "3*G1 + (h+4)*Zp", "Proof size is estimated from the CFRG draft as three G1 elements, four fixed scalars, and h hidden-attribute response scalars."],
+    ["BBS", "proof generation time", "(n+h+8)*T_E1 + T_INVZ + (h+5)*T_RZ + T_H", "T_E1,T_INVZ,T_RZ,T_H", "", "h=n-d denotes the number of hidden attributes."],
+    ["BBS", "proof verification time", "(n+6)*T_E1 + T_MP2 + T_H", "T_E1,T_MP2,T_H", "", "Includes disclosed-message reconstruction and the final pairing-product check."],
+    ["BBS+", "issuance time", "T_E1 + 2*T_RZ", "T_E1,T_RZ", "G1 + 2*Zp", "Optimized estimate for BBS+ credential signing."],
+    ["BBS+", "raw signature verification time", "(n+1)*T_E1 + T_E2 + T_MP2", "T_E1,T_E2,T_MP2", "", "Used as a comparable BBS+-style signature verification model."],
+    ["BBS+", "proof size", "", "", "3*G1 + (h+5)*Zp", "Proof size is approximated as one scalar response larger than the BBS estimate."],
+    ["BBS+", "proof generation time", "single BBS proof generation time + T_E1 + T_RZ", "T_E1,T_INVZ,T_RZ,T_H", "", "Approximate model; mark it as a theoretical estimate in the paper."],
+    ["BBS+", "proof verification time", "single BBS proof verification time + T_E1", "T_E1,T_MP2,T_H", "", "Approximate model; mark it as a theoretical estimate in the paper."],
+    ["PS", "issuance time", "T_R1 + T_E1", "T_R1,T_E1", "2*G1", "Pointcheval-Sanders multi-message signature at single-issuer granularity; multiply by q for independent credentials."],
+    ["PS", "raw signature verification time", "T_MP2 + n*T_E2", "T_MP2,T_E2", "", "Corresponds to two pairings and n G2 exponentiations in the source paper."],
+    ["PS", "proof size", "", "", "2*G1 + GT + (h+2)*Zp", "Proof-of-knowledge estimate for hidden messages."],
+    ["PS", "proof generation time", "3*T_E1 + (h+2)*T_P + (h+1)*T_ET + T_H", "T_E1,T_P,T_ET,T_H", "", "Estimated from proof equations involving hidden attributes."],
+    ["PS", "proof verification time", "(h+2)*T_P + (h+2)*T_ET + T_H", "T_P,T_ET,T_H", "", "Estimated as the cost of verifying the proof transcript."],
+    ["SPS-EQ", "issuance time", "4*T_E1 + T_E2 + T_INVZ + T_RZ + n*T_ZMUL", "T_E1,T_E2,T_INVZ,T_RZ,T_ZMUL", "credential: 3*G1 + G2 + 2*Zp", "Scheme 2 issuance/credential estimate; polynomial work in the set commitment is represented by n*T_ZMUL."],
+    ["SPS-EQ", "raw signature verification time", "T_MP6", "T_MP6", "", "VerifyR contains pairing-product equations, modeled here with a 6-term multi-pairing unit."],
+    ["SPS-EQ", "proof size", "", "", "show-token approximation: 8*G1 + G2 + 2*Zp", "Scheme 2 has constant-size presentation communication per organization."],
+    ["SPS-EQ", "proof generation time", "T_MP6 + 8*T_E1 + T_E2 + h*T_ZMUL + T_H", "T_MP6,T_E1,T_E2,T_ZMUL,T_H", "", "Presentation protocol estimate; communication does not grow linearly with the total number of attributes."],
+    ["SPS-EQ", "proof verification time", "T_MP8 + 4*T_E1 + T_E2 + d*T_ZMUL + T_H", "T_MP8,T_E1,T_E2,T_ZMUL,T_H", "", "Includes subset-opening verification and proof-freshness verification estimates."],
 ]
 
 
@@ -219,7 +219,7 @@ def estimate_scheme_metrics(scheme, n, q, d, unit_costs):
         single_proof_verify = (n + 6) * c["T_E1"] + c["T_MP2"] + c["T_H"]
         return {
             "scheme": scheme,
-            "issuer_model": "q个独立签发方",
+            "issuer_model": "q independent issuers",
             "signature_size_bytes": q * (g1 + zp),
             "issue_total_time_ms": round_ms(q * single_issue),
             "raw_signature_verify_time_ms": round_ms(q * single_raw_verify),
@@ -232,7 +232,7 @@ def estimate_scheme_metrics(scheme, n, q, d, unit_costs):
             "proof_size_formula": "q*(3*G1 + (h+4)*Zp)",
             "proof_generation_time_formula": "q*((n+h+8)*T_E1 + T_INVZ + (h+5)*T_RZ + T_H)",
             "proof_verification_time_formula": "q*((n+6)*T_E1 + T_MP2 + T_H)",
-            "notes": "BBS证明大小按CFRG草案的固定项和隐藏属性响应标量估算。",
+            "notes": "BBS proof size is estimated from the CFRG draft fixed terms and hidden-attribute response scalars.",
         }
 
     if scheme == "BBS+":
@@ -244,7 +244,7 @@ def estimate_scheme_metrics(scheme, n, q, d, unit_costs):
         single_proof_verify = bbs_single_proof_verify + c["T_E1"]
         return {
             "scheme": scheme,
-            "issuer_model": "q个独立签发方",
+            "issuer_model": "q independent issuers",
             "signature_size_bytes": q * (g1 + 2 * zp),
             "issue_total_time_ms": round_ms(q * single_issue),
             "raw_signature_verify_time_ms": round_ms(q * single_raw_verify),
@@ -255,9 +255,9 @@ def estimate_scheme_metrics(scheme, n, q, d, unit_costs):
             "issue_time_formula": "q*(T_E1 + 2*T_RZ)",
             "raw_verify_time_formula": "q*((n+1)*T_E1 + T_E2 + T_MP2)",
             "proof_size_formula": "q*(3*G1 + (h+5)*Zp)",
-            "proof_generation_time_formula": "q*(BBS单次证明生成时间 + T_E1 + T_RZ)",
-            "proof_verification_time_formula": "q*(BBS单次证明验证时间 + T_E1)",
-            "notes": "BBS+证明等式使用近似模型，论文中应标注为理论估算。",
+            "proof_generation_time_formula": "q*(single BBS proof generation time + T_E1 + T_RZ)",
+            "proof_verification_time_formula": "q*(single BBS proof verification time + T_E1)",
+            "notes": "BBS+ proof equations use an approximate model; mark this as a theoretical estimate in the paper.",
         }
 
     if scheme == "PS":
@@ -267,7 +267,7 @@ def estimate_scheme_metrics(scheme, n, q, d, unit_costs):
         single_proof_verify = (h + 2) * c["T_P"] + (h + 2) * c["T_ET"] + c["T_H"]
         return {
             "scheme": scheme,
-            "issuer_model": "q个独立签发方",
+            "issuer_model": "q independent issuers",
             "signature_size_bytes": q * (2 * g1),
             "issue_total_time_ms": round_ms(q * single_issue),
             "raw_signature_verify_time_ms": round_ms(q * single_raw_verify),
@@ -280,7 +280,7 @@ def estimate_scheme_metrics(scheme, n, q, d, unit_costs):
             "proof_size_formula": "q*(2*G1 + GT + (h+2)*Zp)",
             "proof_generation_time_formula": "q*(3*T_E1 + (h+2)*T_P + (h+1)*T_ET + T_H)",
             "proof_verification_time_formula": "q*((h+2)*T_P + (h+2)*T_ET + T_H)",
-            "notes": "PS按独立凭证模型估算；如需顺序聚合PS，可另加一行单独建模。",
+            "notes": "PS is estimated under the independent-credential model; add a separate row if sequential PS aggregation is modeled.",
         }
 
     if scheme == "SPS-EQ":
@@ -290,7 +290,7 @@ def estimate_scheme_metrics(scheme, n, q, d, unit_costs):
         single_proof_verify = c["T_MP8"] + 4 * c["T_E1"] + c["T_E2"] + d * c["T_ZMUL"] + c["T_H"]
         return {
             "scheme": scheme,
-            "issuer_model": "q个独立签发方；未建模跨签发方聚合",
+            "issuer_model": "q independent issuers; cross-issuer aggregation is not modeled",
             "signature_size_bytes": q * (3 * g1 + g2 + 2 * zp),
             "issue_total_time_ms": round_ms(q * single_issue),
             "raw_signature_verify_time_ms": round_ms(q * single_raw_verify),
@@ -303,7 +303,7 @@ def estimate_scheme_metrics(scheme, n, q, d, unit_costs):
             "proof_size_formula": "q*(8*G1 + G2 + 2*Zp)",
             "proof_generation_time_formula": "q*(T_MP6 + 8*T_E1 + T_E2 + h*T_ZMUL + T_H)",
             "proof_verification_time_formula": "q*(T_MP8 + 4*T_E1 + T_E2 + d*T_ZMUL + T_H)",
-            "notes": "SPS-EQ采用Scheme 2匿名凭证模型；单组织为常数大小，多签发方比较时按q个组织相乘。",
+            "notes": "SPS-EQ uses the Scheme 2 anonymous-credential model; per-organization cost is constant-size and is multiplied by q for multi-issuer comparison.",
         }
 
     raise ValueError(f"Unknown scheme: {scheme}")
@@ -339,9 +339,9 @@ def write_theoretical_workbook(output_path, comparison_rows, unit_costs):
     unit_bench.write_xlsx(
         output_path,
         [
-            ("理论对比", column_labels(COMPARISON_COLUMNS), rows_for_columns(comparison_rows, COMPARISON_COLUMNS)),
-            ("使用的单位耗时", column_labels(UNIT_COSTS_USED_COLUMNS), rows_for_columns(unit_rows, UNIT_COSTS_USED_COLUMNS)),
-            ("操作数公式", FORMULA_HEADERS_CN, FORMULA_ROWS_CN),
+            ("Theoretical comparison", column_labels(COMPARISON_COLUMNS), rows_for_columns(comparison_rows, COMPARISON_COLUMNS)),
+            ("Unit costs used", column_labels(UNIT_COSTS_USED_COLUMNS), rows_for_columns(unit_rows, UNIT_COSTS_USED_COLUMNS)),
+            ("Operation-count formulas", FORMULA_HEADERS_CN, FORMULA_ROWS_CN),
         ],
     )
 

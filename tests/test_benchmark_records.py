@@ -56,16 +56,16 @@ class BenchmarkRecordTests(unittest.TestCase):
             self.skipTest("comparison_section.md is not present in this checkout")
         text = section_path.read_text(encoding="utf-8")
 
-        self.assertIn("理论通信开销", text)
-        self.assertIn("真实序列化字节", text)
-        self.assertIn("紧凑编码", text)
-        self.assertIn("当前结构体字段直接序列化", text)
+        self.assertIn("theoretical communication cost", text)
+        self.assertIn("real serialized bytes", text)
+        self.assertIn("compact encoding", text)
+        self.assertIn("direct serialization of current struct fields", text)
         self.assertIn("1376", text)
         self.assertIn("1504", text)
         self.assertIn("fig1_our_payload_encoding.svg", text)
         self.assertIn("fig2_bbs_proof_scaling.svg", text)
         self.assertNotIn("fig1_size_comparison.svg", text)
-        self.assertNotIn("本方案数值来自当前代码的保守未压缩估算", text)
+        self.assertNotIn("OurScheme values are conservative uncompressed estimates from the current code", text)
 
     def test_external_baseline_reported_csv_has_sources_and_comparison_metrics(self):
         baseline_path = Path(__file__).resolve().parents[1] / "results" / "baseline_reported.csv"
@@ -485,15 +485,15 @@ class BenchmarkRecordTests(unittest.TestCase):
                 reader = csv.DictReader(handle)
                 rows = list(reader)
 
-        self.assertNotIn("record_type/记录类型", reader.fieldnames)
-        self.assertIn("scheme/方案", reader.fieldnames)
-        self.assertIn("verifyORProof_mean_ms/OR证明验证平均耗时毫秒", reader.fieldnames)
-        self.assertIn("verifyORProof_std_ms/OR证明验证标准差毫秒", reader.fieldnames)
+        self.assertNotIn("record_type/record type", reader.fieldnames)
+        self.assertIn("scheme/scheme", reader.fieldnames)
+        self.assertIn("verifyORProof_mean_ms/OR proof verification mean milliseconds", reader.fieldnames)
+        self.assertIn("verifyORProof_std_ms/OR proof verification stddev milliseconds", reader.fieldnames)
         self.assertTrue(all("/" in field for field in reader.fieldnames))
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["scheme/方案"], "OurScheme")
-        self.assertEqual(rows[0]["verifyORProof_runs/OR证明验证样本数"], "1")
-        self.assertEqual(rows[0]["verifyORProof_mean_ms/OR证明验证平均耗时毫秒"], "10.0")
+        self.assertEqual(rows[0]["scheme/scheme"], "OurScheme")
+        self.assertEqual(rows[0]["verifyORProof_runs/OR proof verification sample count"], "1")
+        self.assertEqual(rows[0]["verifyORProof_mean_ms/OR proof verification mean milliseconds"], "10.0")
 
     def test_default_output_lives_under_results_directory(self):
         parser = bench.build_arg_parser()
@@ -547,10 +547,10 @@ class BenchmarkRecordTests(unittest.TestCase):
                 rows = list(reader)
 
         self.assertEqual(len(rows), 2)
-        self.assertEqual(rows[0]["experiment_id/实验编号"], "exp-a")
-        self.assertEqual(rows[1]["experiment_id/实验编号"], "exp-b")
-        self.assertEqual(rows[1]["notes/备注"], "second batch")
-        self.assertIn("verifyORProof_mean_ms/OR证明验证平均耗时毫秒", reader.fieldnames)
+        self.assertEqual(rows[0]["experiment_id/experiment id"], "exp-a")
+        self.assertEqual(rows[1]["experiment_id/experiment id"], "exp-b")
+        self.assertEqual(rows[1]["notes/notes"], "second batch")
+        self.assertIn("verifyORProof_mean_ms/OR proof verification mean milliseconds", reader.fieldnames)
 
     def test_build_excel_summary_rows_exposes_paper_metrics(self):
         summary_rows = [
@@ -646,19 +646,19 @@ class BenchmarkRecordTests(unittest.TestCase):
 
         self.assertEqual(len(rows), 1)
         row = rows[0]
-        self.assertEqual(row["signature_size_bytes/签名大小字节"], 128)
-        self.assertEqual(row["issue_total_time_ms/签名时间_多签发方总耗时毫秒"], 20.0)
-        self.assertEqual(row["raw_signature_verify_time_ms/原始签名验证时间毫秒"], 12.5)
-        self.assertEqual(row["proof_size_bytes/证明大小字节"], 736)
-        self.assertEqual(row["proof_generation_time_ms/证明生成时间毫秒"], 9.25)
-        self.assertEqual(row["proof_verification_time_ms/证明验证时间毫秒"], 14.0)
-        self.assertEqual(row["warmup_runs/预热次数"], 2)
-        self.assertEqual(row["issue_total_runs/签名时间有效运行次数"], 3)
-        self.assertEqual(row["issue_total_std_ms/签名时间标准差毫秒"], 1.0)
-        self.assertEqual(row["issue_total_min_ms/签名时间最小耗时毫秒"], 19.0)
-        self.assertEqual(row["issue_total_max_ms/签名时间最大耗时毫秒"], 21.0)
-        self.assertEqual(row["proof_verification_runs/证明验证有效运行次数"], 3)
-        self.assertEqual(row["proof_verification_std_ms/证明验证标准差毫秒"], 0.75)
+        self.assertEqual(row["signature_size_bytes/signature size bytes"], 128)
+        self.assertEqual(row["issue_total_time_ms/multi-issuer issue time milliseconds"], 20.0)
+        self.assertEqual(row["raw_signature_verify_time_ms/raw signature verification milliseconds"], 12.5)
+        self.assertEqual(row["proof_size_bytes/proof size bytes"], 736)
+        self.assertEqual(row["proof_generation_time_ms/proof generation milliseconds"], 9.25)
+        self.assertEqual(row["proof_verification_time_ms/proof verification milliseconds"], 14.0)
+        self.assertEqual(row["warmup_runs/warmup runs"], 2)
+        self.assertEqual(row["issue_total_runs/issue valid run count"], 3)
+        self.assertEqual(row["issue_total_std_ms/issue stddev milliseconds"], 1.0)
+        self.assertEqual(row["issue_total_min_ms/issue min milliseconds"], 19.0)
+        self.assertEqual(row["issue_total_max_ms/issue max milliseconds"], 21.0)
+        self.assertEqual(row["proof_verification_runs/proof verification valid run count"], 3)
+        self.assertEqual(row["proof_verification_std_ms/proof verification stddev milliseconds"], 0.75)
 
     def test_write_performance_workbook_creates_xlsx_with_paper_metrics(self):
         summary_rows = [
@@ -699,11 +699,11 @@ class BenchmarkRecordTests(unittest.TestCase):
             with zipfile.ZipFile(output_path) as workbook_zip:
                 sheet_xml = workbook_zip.read("xl/worksheets/sheet1.xml").decode("utf-8")
 
-        self.assertIn("signature_size_bytes/签名大小字节", sheet_xml)
-        self.assertIn("issue_total_time_ms/签名时间_多签发方总耗时毫秒", sheet_xml)
-        self.assertIn("issue_total_std_ms/签名时间标准差毫秒", sheet_xml)
-        self.assertIn("warmup_runs/预热次数", sheet_xml)
-        self.assertIn("proof_verification_time_ms/证明验证时间毫秒", sheet_xml)
+        self.assertIn("signature_size_bytes/signature size bytes", sheet_xml)
+        self.assertIn("issue_total_time_ms/multi-issuer issue time milliseconds", sheet_xml)
+        self.assertIn("issue_total_std_ms/issue stddev milliseconds", sheet_xml)
+        self.assertIn("warmup_runs/warmup runs", sheet_xml)
+        self.assertIn("proof_verification_time_ms/proof verification milliseconds", sheet_xml)
 
 
 if __name__ == "__main__":

@@ -6,19 +6,19 @@
 
 using namespace std;
 
-// 1. 验证者的密钥对
+// 1. Verifier key pair
 struct VerifierKeyPair {
     Big sk_V;
     G2 pk_V;   // pk_V = G2_gen * sk_V
 };
 
-// 2. NIZK 证明结构
+// 2. NIZK proof structure
 struct NIZKProof {
-    G2 A;  // 承诺 A = g_2^a
-    Big z; // 响应 z = a + c * sk_V
+    G2 A;  // Commitment A = g_2^a
+    Big z; // Response z = a + c * sk_V
 };
 
-// 函数声明
+// Function declarations
 VerifierKeyPair generateVerifierKeyPair(PFC* pfc, const G2& G2_gen);
 NIZKProof generateNIZKProof(const string& ctx, const VerifierKeyPair& kp, PFC* pfc, const G2& G2_gen);
 bool verifyNIZKProof(const string& ctx, const G2& pk_V, const NIZKProof& proof, PFC* pfc, const G2& G2_gen);

@@ -18,7 +18,7 @@ Big vAuthChallenge(const string& ctx, const G2& pk_V, const G2& A, PFC* pfc) {
 
 } // namespace
 
-// --- 生成验证者密钥对 ---
+// --- Generate verifier key pair ---
 VerifierKeyPair generateVerifierKeyPair(PFC* pfc, const G2& G2_gen) {
     VerifierKeyPair kp;
     pfc->random(kp.sk_V);
@@ -26,19 +26,19 @@ VerifierKeyPair generateVerifierKeyPair(PFC* pfc, const G2& G2_gen) {
     return kp;
 }
 
-// --- 验证者生成NIZK证明 ---
+// --- Verifier generates a NIZK proof ---
 NIZKProof generateNIZKProof(const string& ctx, const VerifierKeyPair& kp, PFC* pfc, const G2& G2_gen) {
     NIZKProof proof;
     
-    // 第一步：承诺 (Commitment)
+    // Step 1: commitment
     Big a;
     pfc->random(a);
     proof.A = pfc->mult(G2_gen, a);
     
-    // 第二步：挑战 (Challenge - Fiat-Shamir 转换)
+    // Step 2: challenge via Fiat-Shamir
     Big c = vAuthChallenge(ctx, kp.pk_V, proof.A, pfc);
     
-    // 第三步：响应 (Response)
+    // Step 3: response
     // z = a + c * sk_V mod p
     Big term = modmult(c, kp.sk_V, pfc->order());
     proof.z = (a + term) % pfc->order();
@@ -46,7 +46,7 @@ NIZKProof generateNIZKProof(const string& ctx, const VerifierKeyPair& kp, PFC* p
     return proof;
 }
 
-// --- 用户校验NIZK证明 ---
+// --- User verifies the NIZK proof ---
 bool verifyNIZKProof(const string& ctx, const G2& pk_V, const NIZKProof& proof, PFC* pfc, const G2& G2_gen) {
     Big c = vAuthChallenge(ctx, pk_V, proof.A, pfc);
 

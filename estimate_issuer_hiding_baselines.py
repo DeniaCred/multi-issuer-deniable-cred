@@ -135,7 +135,7 @@ def katz_sefranek_2026(dim, unit_costs):
             "user_knows_issuer_count": "yes, policy size is visible",
             "multi_authority_aggregation": "no",
             "designated_verifier_deniability": "no",
-            "notes": "该方案不向用户隐藏候选签发方集合；其隐藏的是集合中具体哪一个成员签发了凭证。",
+            "notes": "This scheme does not hide the candidate issuer set from the user; it hides which member of that set issued the credential.",
         }
     )
     return row
@@ -180,7 +180,7 @@ def sanders_traore_2024_as_in_ks(dim, unit_costs):
             "user_knows_issuer_count": "yes, policy size is visible",
             "multi_authority_aggregation": "no",
             "designated_verifier_deniability": "no",
-            "notes": "该方案作为基于 PS 签名的签发方隐藏基线使用，而不是作为多签发方聚合签发方案使用。",
+            "notes": "This scheme is used as a PS-based issuer-hiding baseline, not as a multi-issuer aggregate issuance scheme.",
         }
     )
     return row
@@ -223,7 +223,7 @@ def bobolz_2021(dim):
             "user_knows_issuer_count": "yes, policy size is visible",
             "multi_authority_aggregation": "no",
             "designated_verifier_deniability": "no",
-            "notes": "该项时间仅保留公式描述，因为原论文给出的是底层群运算计数，不能直接等同于本仓库的标量乘单位成本。",
+            "notes": "This timing entry is kept formula-only because the source paper reports low-level group-operation counts that are not directly equal to this repository's scalar-multiplication unit cost.",
         }
     )
     return row
@@ -269,7 +269,7 @@ def bosk_2022_hiac(dim, unit_costs):
             "user_knows_issuer_count": "yes, aggregator/verifier-set interaction is size-dependent",
             "multi_authority_aggregation": "aggregator for trusted issuer set, not multi-issuer credential aggregation",
             "designated_verifier_deniability": "no",
-            "notes": "缓存展示时间不包含首次完整性验证；展示大小采用论文 Table 8 的 randomized signature，完整交互上传量应另按 Table 10 建模。",
+            "notes": "Cached show time excludes first-time integrity verification; presentation size uses the randomized signature from Table 8, while full interaction upload volume should be modeled separately from Table 10.",
         }
     )
     return row
@@ -313,7 +313,7 @@ def elkhiyaoui_2021(dim, unit_costs):
             "user_knows_issuer_count": "yes, proof depends on set size",
             "multi_authority_aggregation": "no",
             "designated_verifier_deniability": "no",
-            "notes": "该项采用论文 Table 1 的非紧凑型签发方隐藏证明开销；额外 Schnorr 签名成本按原论文说明未计入。",
+            "notes": "This entry uses the non-compact issuer-hiding proof cost from Table 1 of the paper; the extra Schnorr signature cost is not included, following the source paper's note.",
         }
     )
     return row
@@ -349,7 +349,7 @@ def mir_2023_formula_only(dim):
             "user_knows_issuer_count": "yes, K appears in show complexity",
             "multi_authority_aggregation": "yes",
             "designated_verifier_deniability": "no",
-            "notes": "该项作为仅保留公式的核心功能基线；在缺少完整元素计数前，不虚构具体时间或字节数。",
+            "notes": "This entry is kept as a formula-only core-functionality baseline; concrete timings or byte counts should not be fabricated without complete element counts.",
         }
     )
     return row

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -u
 
-cd /mnt/d/论文/Paper/xiuzheng/code/mul_code/mul-main || exit 1
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR" || exit 1
 
 out_dir="results/issuer_hiding_20260610"
 mkdir -p "$out_dir"

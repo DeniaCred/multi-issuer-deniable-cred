@@ -6,30 +6,30 @@
 
 using namespace std;
 
-// 1. 公钥结构 (全部在 G2 上)
+// 1. Public-key structure; all elements are in G2
 struct KeyPair {
-    //私钥
+    //secret key
     Big x;
     vector<Big> y;
     
-    //公钥
+    //public key
     G2 X;           // X = x * G2_gen
     vector<G2> Y;   // Y_j = y_j * G2_gen
 };
 
-// 2. 签名份额结构 (全部在 G1 上)
+// 2. Signature-share structure; all elements are in G1
 struct SigShare {
     G1 h;
     G1 S; // S = h^(x + \sum y_j * m_j)
 };
 
-// 3. 聚合公钥
+// 3. Aggregate public keys
 struct AggregatedPK {
     G2 X_agg;
     vector<G2> Y_agg;
 };
 
-// 函数声明
+// Function declarations
 KeyPair generateKeyPair(int num_messages, PFC* pfc, const G2& G2_gen);
 SigShare signShare(const KeyPair& kp, const vector<Big>& messages, G1 h, PFC* pfc);
 SigShare aggregateSignatures(const vector<SigShare>& shares);

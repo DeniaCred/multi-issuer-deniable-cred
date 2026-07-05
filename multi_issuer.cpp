@@ -4,11 +4,11 @@
 #include "utils.h"
 #include <iostream>
 
-// --- 生成密钥对 ---
+// --- Generate key pair ---
 KeyPair generateKeyPair(int num_messages, PFC* pfc, const G2& G2_gen) {
     KeyPair kp;
-    pfc->random(kp.x);  // 随机生成私钥 x
-    kp.X = pfc->mult(G2_gen, kp.x); // X = X^x (对应加法群的 x*G2_gen)
+    pfc->random(kp.x);  // Sample secret scalar x
+    kp.X = pfc->mult(G2_gen, kp.x); // X = X^x (x*G2_gen in additive notation)
 
     for (int i = 0; i < num_messages; i++) {
         Big y_j;
@@ -21,24 +21,24 @@ KeyPair generateKeyPair(int num_messages, PFC* pfc, const G2& G2_gen) {
     return kp;
 }
 
-// --- 生成签名份额 ---
+// --- Generate signature share ---
 SigShare signShare(const KeyPair& kp, const vector<Big>& messages, G1 h, PFC* pfc) {
     SigShare share;
     share.h = h;
     
-    // 计算指数 expt = x + \sum (y_j * m_j) mod q
+    // Compute exponent expt = x + \sum (y_j * m_j) mod q
     Big exp = kp.x;
     for (size_t i = 0; i < messages.size(); i++) {
         Big term = modmult(kp.y[i], messages[i], pfc->order());
         exp = (exp + term) % pfc->order();
     }
     
-    // S = h^exp (对应加法群的 exp * h)
+    // S = h^exp (exp*h in additive notation)
     share.S = pfc->mult(h, exp);
     return share;
 }
 
-// --- 聚合签名 ---
+// --- Aggregate signatures ---
 SigShare aggregateSignatures(const vector<SigShare>& shares) {
     if (shares.empty()) return SigShare();
     
@@ -52,7 +52,7 @@ SigShare aggregateSignatures(const vector<SigShare>& shares) {
     return aggregated_sig;
 }
 
-// --- 聚合公钥 ---
+// --- Aggregate public keys ---
 AggregatedPK aggregatePublicKeys(const vector<KeyPair>& kps, int num_messages) {
     AggregatedPK apk;
     if (kps.empty()) return apk;
@@ -71,14 +71,14 @@ AggregatedPK aggregatePublicKeys(const vector<KeyPair>& kps, int num_messages) {
     return apk;
 }
 
-// --- 验证聚合签名 ---
+// --- Verify aggregate signature ---
 bool verifySignature(const AggregatedPK& apk, const SigShare& aggregated_sig, const vector<Big>& messages, const G2& G2_gen, PFC* pfc) {
     auto start_time = std::chrono::high_resolution_clock::now();
 
     G2 right_pub = apk.X_agg;
     for (size_t i = 0; i < messages.size(); i++) {
         G2 term = pfc->mult(apk.Y_agg[i], messages[i]);
-        right_pub = right_pub + term; // Y_agg_j * m_j 再相乘
+        right_pub = right_pub + term; // add Y_agg_j * m_j
     }
     
     GT lhs = pfc->pairing(G2_gen, aggregated_sig.S);  // e(G2, S_agg) <=> e(S_agg, G2_gen)
