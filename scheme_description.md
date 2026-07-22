@@ -15,7 +15,7 @@ pk_i = (X_i, Y_{i,1}, ..., Y_{i,k})
 X_i = g_2^{x_i}, Y_{i,j} = g_2^{y_{i,j}}
 ```
 
-For each issuance run, the signing initiator internally creates a one-time
+For each issuance run, the coordinating issuer internally creates a one-time
 virtual issuer `DM` and aggregates the real issuer shares together with the
 virtual share:
 
@@ -30,10 +30,10 @@ The user receives only `sigma_agg = (h, S_agg)` and the opaque aggregate
 public-key vector `APK`. The user does not receive the real issuer set, the
 issuer count, `pk_DM`, or individual issuer public keys.
 
-## 2. TA Attestation and Holder Commitment
+## 2. TA Certificate and Holder Public Key
 
-The user samples a holder secret `u_U` and commitment `P_U = g_2^{u_U}`. The TA
-issues a randomizable attestation on `(apk_U, P_U)`:
+The user samples a holder secret `u_U` and holder public key `P_U = g_2^{u_U}`.
+The TA issues a randomizable certificate on `(apk_U, P_U)`:
 
 ```text
 R_TA = g_2^rho
@@ -63,7 +63,7 @@ material.
 ## 4. Blinding and Presentation
 
 The user samples two independent nonzero values `r_1` and `r_2` to blind the
-credential, TA attestation, and holder commitment:
+credential, TA certificate, and holder public key:
 
 ```text
 apk'_U = apk_U^{r_2}
@@ -104,5 +104,5 @@ e(X_TA, R'_TA) * e(Y_TA, apk'_U) * e(Z_TA, P'_U) = e(g_1, S'_TA)
 ```
 
 The simulated presentation must reuse the same public, already verifiable
-blinded material `C`; it must not create a fake credential or a fake TA
+blinded material `C`; it must not create a new aggregate credential or a new TA
 certificate.

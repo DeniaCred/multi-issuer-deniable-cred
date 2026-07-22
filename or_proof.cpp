@@ -26,10 +26,10 @@ void addStringToHash(PFC* pfc, const string& value) {
     pfc->add_to_hash((char*)value.c_str());
 }
 
-Big hashToScalar(PFC* pfc, const string& domain, const string& ctx) {
+Big hashToScalar(PFC* pfc, const string& domain, const string& ppHash, const string& ctx) {
     pfc->start_hash();
     addStringToHash(pfc, domain);
-    addStringToHash(pfc, "prototype_ppHash");
+    addStringToHash(pfc, ppHash);
     addStringToHash(pfc, ctx);
     Big scalar = pfc->finish_hash_to_group() % pfc->order();
     if (scalar == Big(0)) {
@@ -38,14 +38,14 @@ Big hashToScalar(PFC* pfc, const string& domain, const string& ctx) {
     return scalar;
 }
 
-G2 hashToG2(PFC* pfc, const G2& g_tilde, const string& ctx) {
-    return pfc->mult(g_tilde, hashToScalar(pfc, "domain_nym", ctx));
+G2 hashToG2(PFC* pfc, const G2& g_tilde, const string& ppHash, const string& ctx) {
+    return pfc->mult(g_tilde, hashToScalar(pfc, "domain_nym", ppHash, ctx));
 }
 
 Big hash_or_challenge(const PresentationPayload& payload, const ORProof& proof, PFC* pfc) {
     pfc->start_hash();
     addStringToHash(pfc, "domain_OR");
-    addStringToHash(pfc, "prototype_ppHash");
+    addStringToHash(pfc, payload.ppHash);
     addStringToHash(pfc, payload.ctx);
     pfc->add_to_hash(payload.pk_V);
     pfc->add_to_hash(payload.cred.user_apk_prime);
@@ -93,7 +93,8 @@ BlindingResult blindCredential(
     Big r_2,
     PFC* pfc,
     const G2& g_tilde,
-    const string& ctx
+    const string& ctx,
+    const string& ppHash
 ) {
     BlindingResult result;
 
@@ -105,7 +106,7 @@ BlindingResult blindCredential(
     result.credential.P_prime = pfc->mult(holder.P_U, r_2);
     result.w_U = modmult(holder.u_U, r_2, pfc->order());
 
-    G2 Q_V = hashToG2(pfc, g_tilde, ctx);
+    G2 Q_V = hashToG2(pfc, g_tilde, ppHash, ctx);
     result.credential.N_V = pfc->mult(Q_V, result.w_U);
     return result;
 }
@@ -116,6 +117,7 @@ PresentationPayload generatePresentationPayload(
     const G2& pk_V,
     const Big& w_U,
     const string& ctx,
+    const string& ppHash,
     PFC* pfc,
     const G2& g_tilde
 ) {
@@ -123,6 +125,7 @@ PresentationPayload generatePresentationPayload(
 
     PresentationPayload payload;
     payload.ctx = ctx;
+    payload.ppHash = ppHash;
     payload.pk_V = pk_V;
     payload.cred = blinded_cred;
     payload.ta_cred = ta_cred;
@@ -140,7 +143,7 @@ PresentationPayload generatePresentationPayload(
     pfc->random(a_left);
     a_left = a_left % pfc->order();
 
-    G2 Q_V = hashToG2(pfc, g_tilde, ctx);
+    G2 Q_V = hashToG2(pfc, g_tilde, ppHash, ctx);
     proof.A1 = pfc->mult(g_tilde, a_left);
     proof.A2 = pfc->mult(Q_V, a_left);
 
@@ -194,7 +197,7 @@ bool verifyORProof(
         return false;
     }
 
-    G2 Q_V = hashToG2(pfc, g_tilde, payload.ctx);
+    G2 Q_V = hashToG2(pfc, g_tilde, payload.ppHash, payload.ctx);
 
     G2 left1_lhs = pfc->mult(g_tilde, proof.z_left);
     G2 left1_rhs = proof.A1 + pfc->mult(payload.cred.P_prime, proof.c_left);
@@ -253,6 +256,7 @@ bool verifyPresentationPayload(
     const G2& g_tilde,
     const G2& expected_pk_V,
     const string& expected_ctx,
+    const string& expected_ppHash,
     const std::string& timing_context
 ) {
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -260,6 +264,8 @@ bool verifyPresentationPayload(
 
     if (!expected_ctx.empty() && payload.ctx != expected_ctx) {
         cout << "  -> [Debug] Presentation context mismatch." << endl;
+    } else if (payload.ppHash != expected_ppHash) {
+        cout << "  -> [Debug] Presentation parameter digest mismatch." << endl;
     } else if (!same_g2(payload.pk_V, expected_pk_V)) {
         cout << "  -> [Debug] Presentation verifier public key mismatch." << endl;
     } else if (!same_g2(payload.ta_cred.user_apk_prime, payload.cred.user_apk_prime)) {
@@ -283,18 +289,26 @@ bool verifyPresentationPayload(
     return valid;
 }
 
-PresentationPayload simulatePresentationPayloadByVerifier(
+bool simulatePresentationPayloadByVerifier(
     const VerifierKeyPair& kp_V,
+    const NIZKProof& vauth_proof,
     const BlindedCredential& blinded_cred,
     const RandomizedTACredential& ta_cred,
     const string& ctx,
+    const string& ppHash,
     PFC* pfc,
-    const G2& g_tilde
+    const G2& g_tilde,
+    PresentationPayload& simulated_payload
 ) {
     auto start_time = std::chrono::high_resolution_clock::now();
 
+    if (!verifyNIZKProof(ctx, ppHash, kp_V.pk_V, vauth_proof, pfc, g_tilde)) {
+        return false;
+    }
+
     PresentationPayload payload;
     payload.ctx = ctx;
+    payload.ppHash = ppHash;
     payload.pk_V = kp_V.pk_V;
     payload.cred = blinded_cred;
     payload.ta_cred = ta_cred;
@@ -306,7 +320,7 @@ PresentationPayload simulatePresentationPayloadByVerifier(
     proof.z_left = proof.z_left % pfc->order();
 
     Big neg_c_left = mod_sub(Big(0), proof.c_left, pfc);
-    G2 Q_V = hashToG2(pfc, g_tilde, ctx);
+    G2 Q_V = hashToG2(pfc, g_tilde, ppHash, ctx);
     proof.A1 = pfc->mult(g_tilde, proof.z_left) + pfc->mult(payload.cred.P_prime, neg_c_left);
     proof.A2 = pfc->mult(Q_V, proof.z_left) + pfc->mult(payload.cred.N_V, neg_c_left);
 
@@ -328,5 +342,6 @@ PresentationPayload simulatePresentationPayloadByVerifier(
     std::cout << ANSI_CYAN << "[Time] simulatePresentationPayloadByVerifier execution time: " << duration << " ms" << ANSI_RESET << std::endl;
     g_execution_times.push_back({"simulatePresentationPayloadByVerifier", duration});
 
-    return payload;
+    simulated_payload = payload;
+    return true;
 }

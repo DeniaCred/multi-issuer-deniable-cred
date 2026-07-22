@@ -64,7 +64,7 @@ FIELD_CN: dict[str, tuple[str, str]] = {
     "public_key_bytes": ("public-key byte count", "Unit: bytes."),
     "apk_user_visible_bytes": ("user-visible aggregate authentication public-key byte count", "Unit: bytes."),
     "internal_pk_directory_bytes": ("internal public-key directory byte count", "Unit: bytes; not user-visible."),
-    "ta_credential_bytes": ("TA attestation byte count", "Unit: bytes."),
+    "ta_credential_bytes": ("TA certificate byte count", "Unit: bytes."),
     "holder_binding_bytes": ("holder binding byte count", "Unit: bytes."),
     "signature_bytes": ("signature byte count", "Unit: bytes."),
     "transcript_bytes": ("presentation transcript byte count", "Unit: bytes."),

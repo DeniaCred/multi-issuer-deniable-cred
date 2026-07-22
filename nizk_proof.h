@@ -20,7 +20,7 @@ struct NIZKProof {
 
 // Function declarations
 VerifierKeyPair generateVerifierKeyPair(PFC* pfc, const G2& G2_gen);
-NIZKProof generateNIZKProof(const string& ctx, const VerifierKeyPair& kp, PFC* pfc, const G2& G2_gen);
-bool verifyNIZKProof(const string& ctx, const G2& pk_V, const NIZKProof& proof, PFC* pfc, const G2& G2_gen);
+NIZKProof generateNIZKProof(const string& ctx, const string& ppHash, const VerifierKeyPair& kp, PFC* pfc, const G2& G2_gen);
+bool verifyNIZKProof(const string& ctx, const string& ppHash, const G2& pk_V, const NIZKProof& proof, PFC* pfc, const G2& G2_gen);
 
 #endif // NIZK_PROOF_H

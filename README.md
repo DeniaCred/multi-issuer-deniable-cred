@@ -20,7 +20,7 @@ run_issuer_hiding_measurements.py
 ```
 
 `main_multi_issuer.cpp` is the end-to-end protocol entry point. It calls the
-multi-issuer credential, TA attestation, verifier authentication, credential
+multi-issuer credential, TA certificate, verifier authentication, credential
 blinding, OR-proof presentation, and verifier-side simulation modules.
 
 ## Repository Layout
@@ -29,7 +29,7 @@ blinding, OR-proof presentation, and verifier-side simulation modules.
 | --- | --- |
 | `main_multi_issuer.cpp` | End-to-end protocol demo and timing output. |
 | `multi_issuer.cpp/.h` | PS-style issuer keys, signature shares, aggregation, public-key aggregation, and aggregate credential verification. |
-| `trusted_authority.cpp/.h` | Randomizable TA attestation over `(apk_U, P_U)` and verification. |
+| `trusted_authority.cpp/.h` | Randomizable TA certificate over `(apk_U, P_U)` and verification. |
 | `nizk_proof.cpp/.h` | Verifier pre-authentication proving knowledge of `sk_V`. |
 | `or_proof.cpp/.h` | Holder secret, blinding, presentation OR proof, full presentation verification, and verifier-side simulation. |
 | `unit_operation_benchmark.cpp` | Unit benchmarks for group operations, pairings, and hashes. |
@@ -49,15 +49,15 @@ The `main()` function in `main_multi_issuer.cpp` runs the prototype in this
 order:
 
 1. Initialize the pairing environment and sample `G1_gen` and `G2_gen`.
-2. Generate keys for the signing initiator, one-time virtual issuer `DM`, and
+2. Generate keys for the coordinating issuer, one-time virtual issuer `DM`, and
    the other internal issuers.
 3. Generate issuer signature shares with `signShare`.
 4. Aggregate the shares and public keys into `(h, S_agg)` and opaque `APK`.
 5. Verify the aggregate credential equation.
-6. Generate a TA key pair, compute `apk_U`, create the holder commitment `P_U`,
-   and issue the TA attestation.
+6. Generate a TA key pair, compute `apk_U`, create the holder public key `P_U`,
+   and issue the TA certificate.
 7. Authenticate the verifier with a Schnorr-style NIZK proof.
-8. Blind the aggregate credential, TA attestation, holder commitment, and
+8. Blind the aggregate credential, TA certificate, holder public key, and
    presentation pseudonym.
 9. Generate and verify the real holder presentation.
 10. Generate a verifier-side simulated presentation over the same blinded

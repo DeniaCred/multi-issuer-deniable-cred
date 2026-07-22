@@ -36,7 +36,7 @@ struct TASignature {
 // 4. Blinded data bundle sent to the verifier
 struct RandomizedTACredential {
     G2 user_apk_prime; // blinded user_apk
-    G2 P_prime;        // blinded holder commitment P_U
+    G2 P_prime;        // blinded holder public key P_U
     G2 R_prime;
     G2 S_prime;
 };

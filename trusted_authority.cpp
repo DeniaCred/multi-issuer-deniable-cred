@@ -21,7 +21,7 @@ TAKeyPair generateTAKeyPair(PFC* pfc, const G1& G1_gen) {
     return kp;
 }
 
-// --- TA creates a randomizable attestation over (user_apk, P_U) ---
+// --- TA creates a randomizable certificate over (user_apk, P_U) ---
 TASignature signUserApk(const TAKeyPair& ta_kp, const G2& user_apk, const G2& P_U, PFC* pfc, const G2& G2_gen) {
     TASignature sig;
     
@@ -46,7 +46,7 @@ TASignature signUserApk(const TAKeyPair& ta_kp, const G2& user_apk, const G2& P_
 RandomizedTACredential randomizeTACredential(const G2& user_apk, const G2& P_U, const TASignature& sig, Big r_2, PFC* pfc) {
     RandomizedTACredential ta_cred;
     
-    // Blind user_apk and holder commitment P_U
+    // Blind user_apk and holder public key P_U
     ta_cred.user_apk_prime = pfc->mult(user_apk, r_2);
     ta_cred.P_prime = pfc->mult(P_U, r_2);
     

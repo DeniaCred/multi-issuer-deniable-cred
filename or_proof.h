@@ -41,6 +41,7 @@ struct ORProof {
 
 struct PresentationPayload {
     string ctx;
+    string ppHash;
     ORProof proof;
     G2 pk_V;
     BlindedCredential cred;
@@ -49,7 +50,7 @@ struct PresentationPayload {
 
 HolderSecret generateHolderSecret(PFC* pfc, const G2& g_tilde);
 G2 computeUserApk(const AggregatedPK& apk, const vector<Big>& m, PFC* pfc);
-BlindingResult blindCredential(const G2& user_apk, const HolderSecret& holder, const SigShare& sig, Big r_1, Big r_2, PFC* pfc, const G2& g_tilde, const string& ctx);
+BlindingResult blindCredential(const G2& user_apk, const HolderSecret& holder, const SigShare& sig, Big r_1, Big r_2, PFC* pfc, const G2& g_tilde, const string& ctx, const string& ppHash);
 
 PresentationPayload generatePresentationPayload(
     const BlindedCredential& blinded_cred,
@@ -57,6 +58,7 @@ PresentationPayload generatePresentationPayload(
     const G2& pk_V,
     const Big& w_U,
     const string& ctx,
+    const string& ppHash,
     PFC* pfc,
     const G2& g_tilde
 );
@@ -82,16 +84,20 @@ bool verifyPresentationPayload(
     const G2& g_tilde,
     const G2& expected_pk_V,
     const string& expected_ctx,
+    const string& expected_ppHash,
     const std::string& timing_context = ""
 );
 
-PresentationPayload simulatePresentationPayloadByVerifier(
+bool simulatePresentationPayloadByVerifier(
     const VerifierKeyPair& kp_V,
+    const NIZKProof& vauth_proof,
     const BlindedCredential& blinded_cred,
     const RandomizedTACredential& ta_cred,
     const string& ctx,
+    const string& ppHash,
     PFC* pfc,
-    const G2& g_tilde
+    const G2& g_tilde,
+    PresentationPayload& simulated_payload
 );
 
 #endif // OR_PROOF_H

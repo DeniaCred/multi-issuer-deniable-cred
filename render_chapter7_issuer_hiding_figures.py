@@ -255,7 +255,7 @@ def render_ourscheme_scalability(wide: pd.DataFrame, output_dir: Path = DEFAULT_
         ),
         ("Present generation", float(max_row[metric_column(wide, "presentTotal")]), COLORS["gold"]),
         (
-            "Verify TA attestation",
+            "Verify TA certificate",
             float(max_row[metric_column(wide, "verifyRandomizedTACredential_real")]),
             COLORS["light_orange"],
         ),
@@ -277,7 +277,7 @@ def render_ourscheme_scalability(wide: pd.DataFrame, output_dir: Path = DEFAULT_
             COLORS["light_blue"],
         ),
         ("Compute apk_U", float(max_row[metric_column(wide, "computeUserApk")]), COLORS["light_blue"]),
-        ("Generate TA attestation", float(max_row[metric_column(wide, "TACert")]), COLORS["light_pink"]),
+        ("Generate TA certificate", float(max_row[metric_column(wide, "TACert")]), COLORS["light_pink"]),
     ]
     components = sorted(components, key=lambda item: item[1], reverse=True)
 
