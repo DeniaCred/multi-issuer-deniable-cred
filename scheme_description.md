@@ -26,24 +26,27 @@ S_agg = S_DM * product_i S_i
 APK = (X_agg, Y_agg,1, ..., Y_agg,k)
 ```
 
-The user receives only `sigma_agg = (h, S_agg)` and the opaque aggregate
-public-key vector `APK`. The user does not receive the real issuer set, the
+After TA certification, the coordinating issuer delivers the aggregate
+credential `sigma_agg = (h, S_agg)`, aggregate public-key vector `APK`, and
+TA certificate. The holder verifies the credential and the certificate. The user does not receive the real issuer set, the
 issuer count, `pk_DM`, or individual issuer public keys.
 
 ## 2. TA Certificate and Holder Public Key
 
 The user samples a holder secret `u_U` and holder public key `P_U = g_2^{u_U}`.
-The TA issues a randomizable certificate on `(apk_U, P_U)`:
+The coordinating issuer derives the verification key
+`vk_U = X_agg * product_j Y_agg,j^{m_j}` and requests a randomizable TA
+certificate on `(vk_U, P_U)`:
 
 ```text
 R_TA = g_2^rho
-S_TA = R_TA^{x_TA} * apk_U^{y_TA} * P_U^{z_TA}
+S_TA = R_TA^{x_TA} * vk_U^{y_TA} * P_U^{z_TA}
 ```
 
 The verification equation is:
 
 ```text
-e(X_TA, R_TA) * e(Y_TA, apk_U) * e(Z_TA, P_U) = e(g_1, S_TA)
+e(X_TA, R_TA) * e(Y_TA, vk_U) * e(Z_TA, P_U) = e(g_1, S_TA)
 ```
 
 ## 3. Verifier Authentication
@@ -66,7 +69,7 @@ The user samples two independent nonzero values `r_1` and `r_2` to blind the
 credential, TA certificate, and holder public key:
 
 ```text
-apk'_U = apk_U^{r_2}
+vk'_U = vk_U^{r_2}
 h' = h^{r_1}
 S'_agg = S_agg^{r_1*r_2}
 R'_TA = R_TA^{r_2}
@@ -80,7 +83,7 @@ N_V = Q_V^{w_U}
 The public presentation material is:
 
 ```text
-C = (apk'_U, h', sigma'_TA, S'_agg, P'_U, N_V)
+C = (vk'_U, h', sigma'_TA, S'_agg, P'_U, N_V)
 ```
 
 where `sigma'_TA = (R'_TA, S'_TA)`.
@@ -99,8 +102,8 @@ verifier-side simulator proves the right branch and simulates the left branch.
 Verification also checks:
 
 ```text
-e(S'_agg, g_2) = e(h', apk'_U)
-e(X_TA, R'_TA) * e(Y_TA, apk'_U) * e(Z_TA, P'_U) = e(g_1, S'_TA)
+e(S'_agg, g_2) = e(h', vk'_U)
+e(X_TA, R'_TA) * e(Y_TA, vk'_U) * e(Z_TA, P'_U) = e(g_1, S'_TA)
 ```
 
 The simulated presentation must reuse the same public, already verifiable

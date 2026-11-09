@@ -6,39 +6,30 @@ void addStringToHash(PFC* pfc, const string& value) {
     pfc->add_to_hash((char*)value.c_str());
 }
 
-Big vAuthChallenge(const string& ctx, const string& ppHash, const G2& pk_V, const G2& A, PFC* pfc) {
-    pfc->start_hash();
-    addStringToHash(pfc, "domain_VAuth");
-    addStringToHash(pfc, ppHash);
-    addStringToHash(pfc, ctx);
-    pfc->add_to_hash(pk_V);
-    pfc->add_to_hash(A);
-    return pfc->finish_hash_to_group() % pfc->order();
+Big vAuthChallenge(const string& ctx, const G2& pk_V, const G2& A, PFC* pfc, const ProtocolParameters& pp) {
+    std::string input = protocolFrame("domain_VAuth") + protocolFrame(pp.binding) +
+        protocolFrame(ctx) + protocolEncodeG2(pk_V, pfc) + protocolEncodeG2(A, pfc);
+    return protocolHashScalar(input, pfc);
 }
 
 } // namespace
 
-// --- Generate verifier key pair ---
 VerifierKeyPair generateVerifierKeyPair(PFC* pfc, const G2& G2_gen) {
     VerifierKeyPair kp;
-    pfc->random(kp.sk_V);
+    kp.sk_V = protocolRandomScalar(pfc, true);
     kp.pk_V = pfc->mult(G2_gen, kp.sk_V);
     return kp;
 }
 
-// --- Verifier generates a NIZK proof ---
-NIZKProof generateNIZKProof(const string& ctx, const string& ppHash, const VerifierKeyPair& kp, PFC* pfc, const G2& G2_gen) {
+NIZKProof generateNIZKProof(const string& ctx, const VerifierKeyPair& kp, PFC* pfc, const G2& G2_gen, const ProtocolParameters& pp) {
     NIZKProof proof;
     
-    // Step 1: commitment
     Big a;
-    pfc->random(a);
+    a = protocolRandomScalar(pfc, false);
     proof.A = pfc->mult(G2_gen, a);
     
-    // Step 2: challenge via Fiat-Shamir
-    Big c = vAuthChallenge(ctx, ppHash, kp.pk_V, proof.A, pfc);
+    Big c = vAuthChallenge(ctx, kp.pk_V, proof.A, pfc, pp);
     
-    // Step 3: response
     // z = a + c * sk_V mod p
     Big term = modmult(c, kp.sk_V, pfc->order());
     proof.z = (a + term) % pfc->order();
@@ -46,9 +37,10 @@ NIZKProof generateNIZKProof(const string& ctx, const string& ppHash, const Verif
     return proof;
 }
 
-// --- User verifies the NIZK proof ---
-bool verifyNIZKProof(const string& ctx, const string& ppHash, const G2& pk_V, const NIZKProof& proof, PFC* pfc, const G2& G2_gen) {
-    Big c = vAuthChallenge(ctx, ppHash, pk_V, proof.A, pfc);
+bool verifyNIZKProof(const string& ctx, const G2& pk_V, const NIZKProof& proof, PFC* pfc, const G2& G2_gen, const ProtocolParameters& pp) {
+    if (!protocolValidG2(pk_V, pfc, true) || !protocolValidG2(proof.A, pfc, false) ||
+        !protocolScalarValid(proof.z, pfc, false)) return false;
+    Big c = vAuthChallenge(ctx, pk_V, proof.A, pfc, pp);
 
     G2 lhs = pfc->mult(G2_gen, proof.z);
     G2 rhs = proof.A + pfc->mult(pk_V, c);

@@ -23,8 +23,8 @@ import seaborn as sns
 
 BASE_DIR = _BASE_DIR
 WORKSPACE_ROOT = BASE_DIR.parents[2]
-DEFAULT_RESULTS_DIR = BASE_DIR / "results" / "issuer_hiding_20260610"
-DEFAULT_OUT_DIR = WORKSPACE_ROOT / "7" / "7-re-pic"
+DEFAULT_RESULTS_DIR = BASE_DIR / "results" / "issuer_hiding_protocol_v2"
+DEFAULT_OUT_DIR = DEFAULT_RESULTS_DIR / "figures"
 
 TOKENS = {
     "surface": "#FCFCFD",
@@ -174,7 +174,7 @@ def padded_axis_limit(values, *, minimum: float = 10.0, step: float = 10.0, pad:
     return math.ceil(upper / step) * step
 
 
-def render_ourscheme_scalability(wide: pd.DataFrame, output_dir: Path = DEFAULT_OUT_DIR) -> Path:
+def render_ourscheme_scalability(wide: pd.DataFrame, output_dir: Path = DEFAULT_OUT_DIR, presentation_metric: str = "presentProof") -> Path:
     fig, axes = plt.subplots(1, 3, figsize=(18.2, 5.05), dpi=180)
 
     k_experiment_id = select_experiment_id(wide, "issuer-hiding-k-axis-")
@@ -188,9 +188,9 @@ def render_ourscheme_scalability(wide: pd.DataFrame, output_dir: Path = DEFAULT_
     max_row = wide[wide["experiment_id"].eq(max_experiment_id)].iloc[0]
 
     line_series = [
-        ("Full verify", metric_column(wide, "verifyPresentationPayload_total_real"), COLORS["pink"], "D"),
-        ("Present gen.", metric_column(wide, "presentTotal"), COLORS["gold"], "o"),
-        ("Compute apk_U", metric_column(wide, "computeUserApk"), COLORS["orange"], "v"),
+        ("Full presentation verification", metric_column(wide, "verifyPresentationPayload_total_real"), COLORS["pink"], "D"),
+        ("Present (OR proof)" if presentation_metric == "presentProof" else "Historical mixed timer", metric_column(wide, presentation_metric), COLORS["gold"], "o"),
+        ("Derive vk_U", metric_column(wide, "deriveVkCoordinator"), COLORS["orange"], "v"),
         ("Agg. PKs", metric_column(wide, "aggregatePublicKeys"), COLORS["olive"], "^"),
     ]
     y_axis_label = metric_axis_label(line_series[0][1])
@@ -249,14 +249,14 @@ def render_ourscheme_scalability(wide: pd.DataFrame, output_dir: Path = DEFAULT_
 
     components = [
         (
-            "Full presentation verify",
+            "Full presentation verification",
             float(max_row[metric_column(wide, "verifyPresentationPayload_total_real")]),
             COLORS["pink"],
         ),
-        ("Present generation", float(max_row[metric_column(wide, "presentTotal")]), COLORS["gold"]),
+        ("Present (OR proof)" if presentation_metric == "presentProof" else "Historical mixed timer", float(max_row[metric_column(wide, presentation_metric)]), COLORS["gold"]),
         (
-            "Verify TA certificate",
-            float(max_row[metric_column(wide, "verifyRandomizedTACredential_real")]),
+            "Verify certificate",
+            float(max_row[metric_column(wide, "CertVerify_real")]),
             COLORS["light_orange"],
         ),
         ("Verify OR proof", float(max_row[metric_column(wide, "verifyORProof_real")]), COLORS["orange"]),
@@ -276,8 +276,8 @@ def render_ourscheme_scalability(wide: pd.DataFrame, output_dir: Path = DEFAULT_
             float(max_row[metric_column(wide, "aggregatePublicKeys")]),
             COLORS["light_blue"],
         ),
-        ("Compute apk_U", float(max_row[metric_column(wide, "computeUserApk")]), COLORS["light_blue"]),
-        ("Generate TA certificate", float(max_row[metric_column(wide, "TACert")]), COLORS["light_pink"]),
+        ("Derive vk_U", float(max_row[metric_column(wide, "deriveVkCoordinator")]), COLORS["light_blue"]),
+        ("Certify binding", float(max_row[metric_column(wide, "Certify")]), COLORS["light_pink"]),
     ]
     components = sorted(components, key=lambda item: item[1], reverse=True)
 
@@ -334,7 +334,7 @@ def render_issuer_hiding_comparison(
     max_row = wide[wide["experiment_id"].eq(max_experiment_id)].iloc[0]
     comp_rows = [
         {
-            "scheme": "OurScheme",
+            "scheme": "Proposed scheme",
             "public_kib": float(max_row["apk_user_visible_bytes"]) / 1024,
             "transcript_kib": float(max_row["transcript_bytes_compact"]) / 1024,
             "verify_ms": float(max_row[metric_column(wide, "verifyPresentationPayload_total_real")]),
@@ -362,7 +362,7 @@ def render_issuer_hiding_comparison(
         )
 
     order = [
-        "OurScheme",
+        "Proposed scheme",
         "Katz-Sefranek 2026",
         "Sanders-Traore 2024",
         "Bobolz et al. 2021",
@@ -376,7 +376,7 @@ def render_issuer_hiding_comparison(
     fig, axes = plt.subplots(1, 3, figsize=(18.2, 4.75), dpi=180)
 
     bar_colors = {
-        "OurScheme": COLORS["blue"],
+        "Proposed scheme": COLORS["blue"],
         "Katz-Sefranek 2026": COLORS["light_blue"],
         "Sanders-Traore 2024": COLORS["orange"],
         "Bobolz et al. 2021": COLORS["grey"],
@@ -429,6 +429,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Render Chapter 7 issuer-hiding figures.")
     parser.add_argument("--results-dir", type=Path, default=DEFAULT_RESULTS_DIR)
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
+    parser.add_argument("--presentation-metric", choices=("presentProof", "presentTotal"), default="presentProof")
     return parser
 
 
@@ -439,7 +440,7 @@ def main() -> None:
     wide = pd.read_csv(args.results_dir / "ours_summary_wide.csv")
 
     outputs = [
-        render_ourscheme_scalability(wide, args.out_dir),
+        render_ourscheme_scalability(wide, args.out_dir, args.presentation_metric),
     ]
     baselines_path = args.results_dir / "issuer_hiding_baselines.csv"
     if baselines_path.exists():

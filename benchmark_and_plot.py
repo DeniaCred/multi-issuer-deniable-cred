@@ -23,7 +23,7 @@ DEFAULT_WARMUP = 5
 DEFAULT_TRIM_PERCENT = 5.0
 ROUND_TRIM_PERCENT = 0.0
 BATCH_TRIM_PERCENT = 20.0
-DEFAULT_OUTPUT_XLSX = "results/performance_data.xlsx"
+DEFAULT_OUTPUT_XLSX = "results/issuer_hiding_protocol_v2/performance_data.xlsx"
 
 # Conservative uncompressed estimates for a pairing-friendly curve with
 # 256-bit base-field elements. If the implementation switches to compressed
@@ -39,17 +39,28 @@ COMPONENT_PHASES = {
     "aggregatePublicKeys": "Issue",
     "issueCredential": "CredentialIssue",
     "verifySignature": "CredentialVerify",
-    "computeUserApk": "CredentialVerify",
-    "TACert": "Issue",
+    "verifySignature_coordinator": "CredentialVerify",
+    "verifySignature_user": "CredentialVerify",
+    "CertVerify_original": "CredentialVerify",
+    "CertVerify_demo": "PresentationVerify",
+    "CertVerify_standalone": "PresentationVerifyStandalone",
+    "CertVerify_real": "PresentationVerify",
+    "CertVerify_simulated": "DeniabilityVerification",
+    "deriveVkCoordinator": "CredentialVerify",
+    "deriveVkUser": "CredentialVerify",
+    "Certify": "Issue",
+    "CertVerify": "PresentationVerify",
     "verifierAuthNIZKGen": "VerifierAuth",
     "verifierAuthNIZKVerify": "VerifierAuth",
-    "randomizeTACredential": "PresentationGen",
+    "randomizeCertificate": "PresentationGen",
     "blindCredential": "PresentationGen",
-    "verifyRandomizedTACredential": "PresentationVerify",
+    "blindTotal": "PresentationGen",
+    "verifyRandomizedCertificate": "PresentationVerify",
     "verifyRandomizedTACredential_standalone": "PresentationVerifyStandalone",
     "verifyRandomizedTACredential_real": "PresentationVerify",
     "verifyRandomizedTACredential_simulated": "DeniabilityVerification",
     "generatePresentationPayload": "PresentationGen",
+    "presentProof": "PresentationGen",
     "presentTotal": "PresentationGen",
     "verifyORProof": "PresentationVerify",
     "verifyORProof_real": "PresentationVerify",
@@ -64,22 +75,30 @@ COMPONENT_ORDER = [
     "aggregatePublicKeys",
     "issueCredential",
     "verifySignature",
-    "computeUserApk",
-    "TACert",
+    "verifySignature_coordinator",
+    "verifySignature_user",
+    "CertVerify",
+    "CertVerify_original",
+    "CertVerify_demo",
+    "deriveVkCoordinator",
+    "deriveVkUser",
+    "Certify",
     "verifierAuthNIZKGen",
     "verifierAuthNIZKVerify",
-    "randomizeTACredential",
+    "randomizeCertificate",
     "blindCredential",
-    "verifyRandomizedTACredential_standalone",
+    "blindTotal",
+    "CertVerify_standalone",
     "generatePresentationPayload",
+    "presentProof",
     "presentTotal",
-    "verifyRandomizedTACredential_real",
+    "CertVerify_real",
     "verifyBlindedAggregateCredential_real",
     "verifyORProof",
     "verifyORProof_real",
     "verifyPresentationPayload_total_real",
     "simulatePresentationPayloadByVerifier",
-    "verifyRandomizedTACredential_simulated",
+    "CertVerify_simulated",
     "verifyBlindedAggregateCredential_simulated",
     "verifyORProof_simulated",
     "verifyPresentationPayload_total_simulated",
@@ -87,16 +106,30 @@ COMPONENT_ORDER = [
 COMPONENT_LABELS = {
     "aggregatePublicKeys": "Internal aggregate public key",
     "issueCredential": "Issue credential",
-    "verifySignature": "Aggregate signature verification",
-    "computeUserApk": "User apk computation",
-    "TACert": "TA certificate issuance",
-    "randomizeTACredential": "TA certificate randomization",
+    "verifySignature": "Aggregate credential verification",
+    "verifySignature_coordinator": "Coordinator aggregate credential verification",
+    "verifySignature_user": "User aggregate credential verification",
+    "CertVerify_original": "Original certificate verification",
+    "CertVerify_demo": "Demo certificate verification",
+    "CertVerify_standalone": "Standalone certificate verification",
+    "CertVerify_real": "Real presentation certificate verification",
+    "CertVerify_simulated": "Simulated presentation certificate verification",
+    "deriveVkCoordinator": "Coordinator vk_U derivation",
+    "deriveVkUser": "User vk_U derivation",
+    "Certify": "Credential binding certification",
+    "CertVerify": "Certificate verification",
+    "randomizeCertificate": "Certificate randomization",
     "blindCredential": "Aggregate credential blinding",
-    "verifyRandomizedTACredential": "TA certificate verification",
-    "verifyRandomizedTACredential_standalone": "Standalone TA certificate verification",
-    "verifyRandomizedTACredential_real": "Real presentation TA verification",
-    "verifyRandomizedTACredential_simulated": "Simulated presentation TA verification",
+    "blindTotal": "Blind total (sampling + certificate randomization + credential blinding)",
+    "verifyRandomizedCertificate": "Certificate verification",
+    "verifyRandomizedCertificate_original": "Original certificate verification",
+    "verifyRandomizedCertificate_demo": "Demo certificate verification",
+    "verifyRandomizedCertificate_standalone": "Standalone certificate verification",
+    "verifyRandomizedCertificate_real": "Real presentation certificate verification",
+    "verifyRandomizedCertificate_simulated": "Simulated presentation certificate verification",
     "generatePresentationPayload": "Presentation generation",
+    "presentProof": "Present (OR-proof generation only)",
+    "presentTotal": "Historical mixed presentation timer",
     "verifyORProof": "OR proof verification",
     "verifyORProof_real": "Real presentation OR proof verification",
     "verifyORProof_simulated": "Simulated presentation OR proof verification",
@@ -111,9 +144,30 @@ COMPONENT_LABELS.update(
     {
         "verifierAuthNIZKGen": "Verifier auth NIZK generation",
         "verifierAuthNIZKVerify": "Verifier auth NIZK verification",
-        "presentTotal": "End-to-end presentation generation",
     }
 )
+
+# Historical execution records used the pre-migration labels.  Normalize them
+# only when reading legacy data; newly generated records must use the canonical
+# coordinator/certificate labels above.
+LEGACY_METRIC_ALIASES = {
+    "computeUserApk": "deriveVkCoordinator",
+    "TACert": "Certify",
+    "randomizeTACredential": "randomizeCertificate",
+    "verifyRandomizedTACredential": "CertVerify",
+    "verifyRandomizedTACredential_standalone": "CertVerify_standalone",
+    "verifyRandomizedTACredential_real": "CertVerify_real",
+    "verifyRandomizedTACredential_simulated": "CertVerify_simulated",
+    "verifyRandomizedCertificate": "CertVerify",
+    "verifyRandomizedCertificate_original": "CertVerify_original",
+    "verifyRandomizedCertificate_demo": "CertVerify_demo",
+    "verifyRandomizedCertificate_standalone": "CertVerify_standalone",
+    "verifyRandomizedCertificate_real": "CertVerify_real",
+    "verifyRandomizedCertificate_simulated": "CertVerify_simulated",
+}
+
+def canonical_metric_name(name: str) -> str:
+    return LEGACY_METRIC_ALIASES.get(name, name)
 
 RAW_FIELDNAMES = [
     "scheme",
@@ -206,10 +260,10 @@ COMBINED_COLUMNS = [
     ("component", "component/component"),
     ("run_id", "run_id/run id"),
     ("time_ms", "time_ms/elapsed milliseconds"),
-    ("runs", "runs/valid run count"),
-    ("mean_ms", "mean_ms/mean milliseconds"),
-    ("median_ms", "median_ms/median milliseconds"),
-    ("std_ms", "std_ms/stddev milliseconds"),
+    ("runs", "sample count"),
+    ("mean_ms", "mean milliseconds"),
+    ("median_ms", "median milliseconds"),
+    ("std_ms", "stddev milliseconds"),
     ("min_ms", "min_ms/min milliseconds"),
     ("max_ms", "max_ms/max milliseconds"),
     ("credential_bytes", "credential_bytes/credential bytes"),
@@ -265,7 +319,7 @@ SUMMARY_WIDE_SIZE_COLUMNS = [
     ("public_key_bytes", "public_key_bytes/public key bytes"),
     ("apk_user_visible_bytes", "apk_user_visible_bytes/user-visible aggregate public key bytes"),
     ("internal_pk_directory_bytes", "internal_pk_directory_bytes/internal public-key directory bytes"),
-    ("ta_credential_bytes", "ta_credential_bytes/TA certificate bytes"),
+    ("ta_credential_bytes", "ta_credential_bytes/certificate bytes"),
     ("holder_binding_bytes", "holder_binding_bytes/holder binding bytes"),
     ("signature_bytes", "signature_bytes/signature bytes"),
     ("transcript_bytes", "transcript_bytes/presentation transcript bytes"),
@@ -426,20 +480,33 @@ def strip_ansi(text):
 
 def parse_timing_records(output):
     records = []
+    seen = set()
     clean_output = strip_ansi(output)
     pattern = re.compile(
-        r"\[Time\]\s+([A-Za-z_][A-Za-z0-9_]*)\s+execution time:\s+([0-9.]+)\s+ms"
+        r"^\s*\[Time\]\s+([A-Za-z_][A-Za-z0-9_]*)\s+execution time:\s+(\S+)\s+ms\s*$"
     )
     for line in clean_output.splitlines():
-        match = pattern.search(line)
-        if not match:
+        if "[Time]" not in line:
             continue
-        component = match.group(1)
+        match = pattern.fullmatch(line)
+        if match is None:
+            raise ValueError(f"Malformed timing record: {line!r}")
+        raw_name, raw_value = match.groups()
+        try:
+            time_ms = float(raw_value)
+        except ValueError as exc:
+            raise ValueError(f"Invalid timing value for {raw_name}: {raw_value!r}") from exc
+        if not math.isfinite(time_ms) or time_ms < 0:
+            raise ValueError(f"Timing value for {raw_name} must be finite and non-negative")
+        component = canonical_metric_name(raw_name)
+        if component in seen:
+            raise ValueError(f"Duplicate timing record for {component}")
+        seen.add(component)
         records.append(
             {
                 "component": component,
                 "phase": COMPONENT_PHASES.get(component, "Other"),
-                "time_ms": float(match.group(2)),
+                "time_ms": time_ms,
             }
         )
     return records
@@ -469,7 +536,7 @@ def estimate_size_fields(num_attrs, num_issuers):
     gt = GROUP_BYTES["GT"]
 
     signature_bytes = 2 * g1  # aggregate PS-style credential: (h, S_agg)
-    credential_bytes = 2 * g1 + 5 * g2  # h', S'_agg, apk'_U, R'_TA, S'_TA, P'_U, N_V
+    credential_bytes = 2 * g1 + 5 * g2  # h', S'_agg, vk'_U, R'_c, S'_c, pk'_U, N_V
     proof_bytes = (4 * zp) + (3 * g2)  # c_left, z_left, c_right, z_right, A1, A2, T_right
     apk_user_visible_bytes = (num_attrs + 1) * g2
     internal_pk_directory_bytes = num_issuers * (num_attrs + 1) * g2
@@ -478,7 +545,8 @@ def estimate_size_fields(num_attrs, num_issuers):
     verifier_auth_proof_bytes = g2 + zp
     verifier_auth_message_bytes = g2 + verifier_auth_proof_bytes
     transcript_bytes_compact = g2 + credential_bytes + proof_bytes
-    transcript_bytes_serialized = transcript_bytes_compact + g2
+    # Direct field encoding repeats vk_U' and pk_U' in credential and certificate.
+    transcript_bytes_serialized = transcript_bytes_compact + 2 * g2
 
     return {
         "credential_bytes": credential_bytes,
@@ -499,8 +567,11 @@ def estimate_size_fields(num_attrs, num_issuers):
     }
 
 
-def run_protocol(executable, num_attrs, num_other_issuers):
+def run_protocol(executable, num_attrs, num_other_issuers, *, benchmark_mode=False, cwd=None):
     input_text = f"{num_attrs}\n{num_other_issuers}\n"
+    environment = os.environ.copy()
+    if benchmark_mode:
+        environment["PROTOCOL_BENCHMARK_MODE"] = "1"
     result = subprocess.run(
         [str(resolve_executable(executable))],
         input=input_text,
@@ -508,6 +579,8 @@ def run_protocol(executable, num_attrs, num_other_issuers):
         encoding="utf-8",
         errors="replace",
         capture_output=True,
+        cwd=cwd,
+        env=environment,
         check=False,
     )
     if result.returncode != 0:
@@ -848,9 +921,20 @@ def build_excel_summary_rows(summary_rows, experiment_id="", run_started_at="", 
                 "proof_verification_time_ms": "",
             }
 
+        if row["component"] == "verifySignature" and any(
+            candidate["scheme"] == row["scheme"] and candidate["num_attrs"] == row["num_attrs"] and
+            candidate["num_issuers"] == row["num_issuers"] and candidate["num_other_issuers"] == row["num_other_issuers"] and
+            candidate["num_disclosed"] == row["num_disclosed"] and candidate["component"] == "verifySignature_user"
+            for candidate in summary_rows
+        ):
+            continue
+
         metric_prefix = {
             "issueCredential": "issue_total",
+            # User acceptance is the externally relevant raw verification metric.
+            "verifySignature_user": "raw_signature_verify",
             "verifySignature": "raw_signature_verify",
+            "presentProof": "proof_generation",
             "generatePresentationPayload": "proof_generation",
             "verifyORProof": "proof_verification",
             "verifyORProof_real": "proof_verification",

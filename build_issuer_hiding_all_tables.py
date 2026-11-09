@@ -351,7 +351,7 @@ def add_index_sheet(wb: Workbook, rows: list[dict[str, Any]]) -> None:
     title = WriteOnlyCell(ws, value="Issuer-Hiding Experiment Tables Consolidated Workbook")
     title.font = TITLE_FONT
     ws.append([title])
-    ws.append(["generation note", "This workbook consolidates the formal 200-run measurements, formula-estimated comparison tables, and field dictionary; smoke_2runs is excluded from the formal summary."])
+    ws.append(["generation note", "This workbook consolidates measurements, formula estimates, and field descriptions from the selected results directory."])
     ws.append([])
     headers = ["sheet_name", "source_file", "source_sheet", "table_role", "rows", "columns", "notes"]
     append_header(ws, [display_header(header) for header in headers])

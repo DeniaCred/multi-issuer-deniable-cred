@@ -1542,30 +1542,40 @@ BOOL PFC::member(const GT& z)
 	return FALSE;
 }
 
+#if !defined(MIRACL_DISABLE_PAIRING_DIAGNOSTICS)
 #include <chrono>
 #include <iostream>
+#endif
 
 GT PFC::pairing(const G2& x,const G1& y)
 {
+#if !defined(MIRACL_DISABLE_PAIRING_DIAGNOSTICS)
     auto start = std::chrono::high_resolution_clock::now();
+#endif
 	GT z;
 	z=miller_loop(x,y);
 	z=final_exp(z);
+#if !defined(MIRACL_DISABLE_PAIRING_DIAGNOSTICS)
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = end - start;
-    std::cout << " -> [Performance] pairing time: " << duration.count() << " ms\n";
+    std::cout << " -> [Performance] Pairing time: " << duration.count() << " ms\n";
+#endif
 	return z;
 }
 
 GT PFC::multi_pairing(int n,G2 **y,G1 **x)
 {
+#if !defined(MIRACL_DISABLE_PAIRING_DIAGNOSTICS)
     auto start = std::chrono::high_resolution_clock::now();
+#endif
 	GT z;
 	z=multi_miller(n,y,x);
 	z=final_exp(z);
+#if !defined(MIRACL_DISABLE_PAIRING_DIAGNOSTICS)
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = end - start;
-    std::cout << " -> [Performance] multi-pairing time: " << duration.count() << " ms\n";
+    std::cout << " -> [Performance] Multi-pairing time: " << duration.count() << " ms\n";
+#endif
 	return z;
 
 }

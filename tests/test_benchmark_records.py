@@ -50,23 +50,6 @@ class BenchmarkRecordTests(unittest.TestCase):
             ],
         )
 
-    def test_comparison_section_distinguishes_theoretical_sizes_from_measured_serialization(self):
-        section_path = Path(__file__).resolve().parents[1] / "results" / "comparison_section.md"
-        if not section_path.exists():
-            self.skipTest("comparison_section.md is not present in this checkout")
-        text = section_path.read_text(encoding="utf-8")
-
-        self.assertIn("theoretical communication cost", text)
-        self.assertIn("real serialized bytes", text)
-        self.assertIn("compact encoding", text)
-        self.assertIn("direct serialization of current struct fields", text)
-        self.assertIn("1376", text)
-        self.assertIn("1504", text)
-        self.assertIn("fig1_our_payload_encoding.svg", text)
-        self.assertIn("fig2_bbs_proof_scaling.svg", text)
-        self.assertNotIn("fig1_size_comparison.svg", text)
-        self.assertNotIn("OurScheme values are conservative uncompressed estimates from the current code", text)
-
     def test_external_baseline_reported_csv_has_sources_and_comparison_metrics(self):
         baseline_path = Path(__file__).resolve().parents[1] / "results" / "baseline_reported.csv"
         if not baseline_path.exists():
@@ -164,6 +147,17 @@ class BenchmarkRecordTests(unittest.TestCase):
                 {"component": "verifyORProof", "phase": "PresentationVerify", "time_ms": 14.25},
             ],
         )
+
+    def test_parse_timing_records_rejects_invalid_or_duplicate_measurements(self):
+        for output in (
+            "[Time] issueCredential execution time: NaN ms\n",
+            "[Time] issueCredential execution time: -1 ms\n",
+            "[Time] issueCredential execution time: nope ms\n",
+            "[Time] issueCredential execution time: 1 ms\n[Time] issueCredential execution time: 2 ms\n",
+            "[Time] issueCredential execution time: 1x ms\n",
+        ):
+            with self.subTest(output=output), self.assertRaises(ValueError):
+                bench.parse_timing_records(output)
 
     def test_size_estimates_include_comparison_fields(self):
         small = bench.estimate_size_fields(num_attrs=2, num_issuers=5)
@@ -499,7 +493,7 @@ class BenchmarkRecordTests(unittest.TestCase):
         parser = bench.build_arg_parser()
         args = parser.parse_args([])
 
-        self.assertEqual(args.output_xlsx, "results/performance_data.xlsx")
+        self.assertEqual(args.output_xlsx, "results/issuer_hiding_protocol_v2/performance_data.xlsx")
         self.assertFalse(hasattr(args, "output_csv"))
         self.assertFalse(hasattr(args, "runs_csv"))
         self.assertFalse(hasattr(args, "include_raw"))

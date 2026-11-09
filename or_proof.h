@@ -6,20 +6,21 @@
 #include "Algorithm/pairing_3.h"
 #include "multi_issuer.h"
 #include "nizk_proof.h"
-#include "trusted_authority.h"
+#include "coordinator_certification.h"
+#include "protocol_parameters.h"
 
 using namespace std;
 
-struct HolderSecret {
-    Big u_U;
-    G2 P_U;
+struct HolderKeyPair {
+    Big sk_U;
+    G2 pk_U;
 };
 
 struct BlindedCredential {
-    G2 user_apk_prime;
+    G2 vk_U_prime;
     G1 h_prime;
     G1 s_prime;
-    G2 P_prime;
+    G2 pk_U_prime;
     G2 N_V;
 };
 
@@ -41,63 +42,54 @@ struct ORProof {
 
 struct PresentationPayload {
     string ctx;
-    string ppHash;
     ORProof proof;
     G2 pk_V;
     BlindedCredential cred;
-    RandomizedTACredential ta_cred;
+    RandomizedCertificate cert;
 };
 
-HolderSecret generateHolderSecret(PFC* pfc, const G2& g_tilde);
-G2 computeUserApk(const AggregatedPK& apk, const vector<Big>& m, PFC* pfc);
-BlindingResult blindCredential(const G2& user_apk, const HolderSecret& holder, const SigShare& sig, Big r_1, Big r_2, PFC* pfc, const G2& g_tilde, const string& ctx, const string& ppHash);
+HolderKeyPair generateHolderKeyPair(PFC* pfc, const G2& g_tilde);
+G2 deriveVerificationKey(const AggregatedPK& apk_agg, const vector<Big>& m, PFC* pfc);
+BlindingResult blindCredential(const G2& vk_U, const HolderKeyPair& holder, const SigShare& sig, Big r_1, Big r_2, PFC* pfc, const G2& g_tilde, const string& ctx, const ProtocolParameters& pp);
 
 PresentationPayload generatePresentationPayload(
     const BlindedCredential& blinded_cred,
-    const RandomizedTACredential& ta_cred,
+    const RandomizedCertificate& cert,
     const G2& pk_V,
     const Big& w_U,
     const string& ctx,
-    const string& ppHash,
     PFC* pfc,
-    const G2& g_tilde
+    const G2& g_tilde, const ProtocolParameters& pp, const std::string& mu = ""
 );
 
 bool verifyORProof(
     const PresentationPayload& payload,
     PFC* pfc,
     const G1& g,
-    const G2& g_tilde,
-    const std::string& timing_context = ""
+    const G2& g_tilde, const ProtocolParameters& pp, const std::string& mu = "", const std::string& timing_context = ""
 );
 bool verifyBlindedAggregateCredential(
     const BlindedCredential& cred,
     PFC* pfc,
-    const G2& g_tilde,
-    const std::string& timing_context = ""
+    const G2& g_tilde, const ProtocolParameters& pp, const std::string& timing_context = ""
 );
 bool verifyPresentationPayload(
-    const TAPublicKey& ta_pk,
+    const CertPublicKey& cert_pk,
     const PresentationPayload& payload,
     PFC* pfc,
     const G1& g,
     const G2& g_tilde,
     const G2& expected_pk_V,
-    const string& expected_ctx,
-    const string& expected_ppHash,
-    const std::string& timing_context = ""
+    const string& expected_ctx, const ProtocolParameters& pp, const std::string& mu = "", const std::string& timing_context = ""
 );
 
-bool simulatePresentationPayloadByVerifier(
+PresentationPayload simulatePresentationPayloadByVerifier(
     const VerifierKeyPair& kp_V,
-    const NIZKProof& vauth_proof,
     const BlindedCredential& blinded_cred,
-    const RandomizedTACredential& ta_cred,
+    const RandomizedCertificate& cert,
     const string& ctx,
-    const string& ppHash,
     PFC* pfc,
-    const G2& g_tilde,
-    PresentationPayload& simulated_payload
+    const G2& g_tilde, const ProtocolParameters& pp, const std::string& mu = ""
 );
 
 #endif // OR_PROOF_H

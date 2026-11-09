@@ -3,26 +3,29 @@
 #include <sstream>
 #include "Algorithm/pairing_3.h"
 #include "multi_issuer.h"
-#include "trusted_authority.h"
+#include "coordinator_certification.h"
 #include "nizk_proof.h"
 #include "or_proof.h"
 #include "utils.h"
+#include "protocol_rng.h"
 #include <iomanip>
 #include <fstream>
 #include <chrono>
+#include <cstdlib>
+#include <algorithm>
 
 std::vector<std::pair<std::string, double>> g_execution_times;
 
 void printSummaryTable() {
     std::cout << "\n" << ANSI_BOLD << ANSI_CYAN << "+--------------------------------------------------------+" << ANSI_RESET << std::endl;
-    std::cout << ANSI_BOLD << ANSI_CYAN << "|                   Performance Summary (ms)                  |" << ANSI_RESET << std::endl;
+    std::cout << ANSI_BOLD << ANSI_CYAN << "| Timing summary (ms)                                    |" << ANSI_RESET << std::endl;
     std::cout << ANSI_BOLD << ANSI_CYAN << "+--------------------------------------------------------+" << ANSI_RESET << std::endl;
-    
+
     std::cout << ANSI_BOLD << "| " << std::left << std::setw(39) << "Function" << " | " << std::setw(11) << "Time" << " |" << ANSI_RESET << std::endl;
     std::cout << "+--------------------------------------------------------+" << std::endl;
-    
+
     for(const auto& entry : g_execution_times) {
-        std::cout << "| " << ANSI_YELLOW << std::left << std::setw(39) << entry.first << ANSI_RESET 
+        std::cout << "| " << ANSI_YELLOW << std::left << std::setw(39) << entry.first << ANSI_RESET
                   << " | " << ANSI_GREEN << std::right << std::setw(8) << std::fixed << std::setprecision(4) << entry.second << " ms" << ANSI_RESET << " |" << std::endl;
     }
     std::cout << "+--------------------------------------------------------+\n" << std::endl;
@@ -30,289 +33,292 @@ void printSummaryTable() {
 
 using namespace std;
 
-Big randomNonZeroScalar(PFC& pfc) {
-    Big value;
-    do {
-        pfc.random(value);
-        value = value % pfc.order();
-    } while (value == Big(0));
-    return value;
-}
-
 void recordExecutionTime(const std::string& label, double duration) {
-    std::cout << ANSI_CYAN << "[Time] " << label << " execution time: " << duration << " ms" << ANSI_RESET << std::endl;
-    g_execution_times.push_back({label, duration});
+    emitTimingRecord(label, duration);
 }
 
 int main() {
-    PFC pfc(128); // 128-bit security BN curve environment initialization
+    const bool benchmark_mode = protocolBenchmarkMode();
+    g_execution_times.reserve(128);
+    ProtocolRng protocol_rng;
+    PFC pfc(128, protocol_rng.get()); // BN254 pairing parameter selection
     {
         G2 G2_gen;
-        pfc.random(G2_gen); // global base point in G2
-        
+        pfc.random(G2_gen);
+
         G1 G1_gen;
-        pfc.random(G1_gen); // global base point in G1
-        const string ppHash = deriveProtocolParameterDigest(&pfc, G1_gen, G2_gen);
-        
+        pfc.random(G1_gen);
+
         int num_messages;
-        cout << "Enter the number of messages/attributes (num_messages): ";
+        if (!benchmark_mode) cout << "Number of attributes (num_messages): ";
         cin >> num_messages;
+        ProtocolParameters pp = makeProtocolParameters(&pfc, G1_gen, G2_gen, num_messages);
         vector<Big> messages;
         for (int i = 0; i < num_messages; i++) {
-            messages.push_back(Big(12345 + i)); // synthetic user attributes
+            messages.push_back(Big(12345 + i));
         }
-        
-        cout << "=== PS Multi-Issuer Credential Prototype Demo ===" << endl;
-        
-        // AggIssue samples the issuance base h.
+
+        if (!benchmark_mode) cout << "=== Multi-issuer credential prototype ===" << endl;
+        HolderKeyPair holder = generateHolderKeyPair(&pfc, G2_gen);
+
         G1 h;
         pfc.random(h);
-        cout << "-> The coordinating issuer samples issuance base h in G1." << endl;
-        
-        cout << "\n[1] Parties generate their key pairs..." << endl;
-        
-        cout << "  -> The coordinating issuer generates its own key pair..." << endl;
+        if (!benchmark_mode) cout << "-> Sampled the common issuance base h in G1." << endl;
+
+        if (!benchmark_mode) cout << "\n[1] Generate issuer keys..." << endl;
+
+        if (!benchmark_mode) cout << "  -> Generate the coordinating issuer key." << endl;
         KeyPair kp_initiator = generateKeyPair(num_messages, &pfc, G2_gen);
-        
-        cout << "  -> The coordinating issuer internally generates the one-time virtual issuer DM key pair..." << endl;
-        KeyPair kp_dm = generateKeyPair(num_messages, &pfc, G2_gen); 
-        
+
+        if (!benchmark_mode) cout << "  -> Generate a fresh key for DM." << endl;
+        KeyPair kp_dm = generateKeyPair(num_messages, &pfc, G2_gen);
+
         int num_other_issuers;
-        cout << "Enter the number of other cooperating issuers (num_other_issuers): ";
+        if (!benchmark_mode) cout << "Number of other real issuers (num_other_issuers): ";
         cin >> num_other_issuers;
-        cout << "  -> " << num_other_issuers << "  other cooperating issuers generate their key pairs..." << endl;
-        
+        if (!benchmark_mode) cout << "  -> " << num_other_issuers << " other real issuers generate keys." << endl;
+
         vector<KeyPair> other_issuers_kps;
         for (int i = 0; i < num_other_issuers; i++) {
             other_issuers_kps.push_back(generateKeyPair(num_messages, &pfc, G2_gen));
         }
-        
-        cout << "\n[2] Each issuer generates a signature share over h..." << endl;
-        cout << "    Signature form: (h, h^{x_i + \\Sigma y_{i,j} * m_j})" << endl;
-        
-        auto issue_start_time = std::chrono::high_resolution_clock::now();
+
+        if (!benchmark_mode) cout << "\n[2] Generate signature shares..." << endl;
+        if (!benchmark_mode) cout << "    Share: (h, h^{x_i + sum_j y_{i,j} * m_j})" << endl;
+
+        auto issue_start_time = std::chrono::steady_clock::now();
         vector<SigShare> all_shares;
-        
+
         SigShare share_initiator = signShare(kp_initiator, messages, h, &pfc);
         all_shares.push_back(share_initiator);
-        
+
         SigShare share_dm = signShare(kp_dm, messages, h, &pfc);
         all_shares.push_back(share_dm);
-        
+
         for (int i = 0; i < num_other_issuers; i++) {
             all_shares.push_back(signShare(other_issuers_kps[i], messages, h, &pfc));
         }
-        
-        cout << "\n[3] The coordinating issuer collects and aggregates all signature shares..." << endl;
+
+        if (!benchmark_mode) cout << "\n[3] Aggregate the signature shares..." << endl;
         SigShare aggregated_sig = aggregateSignatures(all_shares);
-        auto issue_end_time = std::chrono::high_resolution_clock::now();
+        auto issue_end_time = std::chrono::steady_clock::now();
         double issue_duration = std::chrono::duration<double, std::milli>(issue_end_time - issue_start_time).count();
-        std::cout << ANSI_CYAN << "[Time] issueCredential execution time: " << issue_duration << " ms" << ANSI_RESET << std::endl;
-        g_execution_times.push_back({"issueCredential", issue_duration});
-        cout << "  -> Aggregate signature (h, S_agg) generated." << endl;
-        
-        cout << "\n[4] The coordinating issuer aggregates all participant public keys into APK..." << endl;
+        emitTimingRecord("issueCredential", issue_duration);
+        if (!benchmark_mode) cout << "  -> Aggregate credential generated." << endl;
+
+        if (!benchmark_mode) cout << "\n[4] Aggregate issuer public keys..." << endl;
         vector<KeyPair> all_kps;
-        all_kps.push_back(kp_initiator);     // initiator
-        all_kps.push_back(kp_dm);            // DM
+        all_kps.push_back(kp_initiator);
+        all_kps.push_back(kp_dm);
         for (int i = 0; i < num_other_issuers; i++) {
-            all_kps.push_back(other_issuers_kps[i]); // other issuer
+            all_kps.push_back(other_issuers_kps[i]);
         }
-        auto aggregate_pk_start_time = std::chrono::high_resolution_clock::now();
+        auto aggregate_pk_start_time = std::chrono::steady_clock::now();
         AggregatedPK apk = aggregatePublicKeys(all_kps, num_messages);
-        auto aggregate_pk_end_time = std::chrono::high_resolution_clock::now();
+        auto aggregate_pk_end_time = std::chrono::steady_clock::now();
         recordExecutionTime(
             "aggregatePublicKeys",
             std::chrono::duration<double, std::milli>(aggregate_pk_end_time - aggregate_pk_start_time).count()
         );
-        cout << "  -> Aggregate public key apk (X_agg, Y_agg) generated." << endl;
-        
-        cout << "\n[5] Return APK and the aggregate credential to the user..." << endl;
-        
-        cout << "\n[6] The user/verifier checks the aggregate credential with apk..." << endl;
-        bool is_valid = verifySignature(apk, aggregated_sig, messages, G2_gen, &pfc);
-        
+        if (!benchmark_mode) cout << "  -> Aggregate public-key vector generated." << endl;
+
+        if (!benchmark_mode) cout << "\n[5] The coordinating issuer completes aggregation." << endl;
+
+        if (!benchmark_mode) cout << "\n[6] Check the aggregate credential before TA certification..." << endl;
+        bool is_valid = verifySignature(apk, aggregated_sig, messages, G2_gen, &pfc, "coordinator");
+        if (!is_valid) return -1;
+
         if (is_valid) {
-            cout << ANSI_GREEN << "  -> [OK] Aggregate credential and opaque aggregate public-key vector are algebraically consistent." << ANSI_RESET << endl;
+            if (!benchmark_mode) cout << ANSI_GREEN << "  -> Aggregate credential verified." << ANSI_RESET << endl;
         } else {
-            cout << ANSI_RED << "  -> [FAIL] Verification failed." << ANSI_RESET << endl;
+            if (!benchmark_mode) cout << ANSI_RED << "  -> Aggregate credential verification failed." << ANSI_RESET << endl;
         }
-        
-        cout << "\n=== TA Certificate and Randomization Demo ===" << endl;
-        
-        cout << "\n[7] TA generates a key pair..." << endl;
-        TAKeyPair ta_kp = generateTAKeyPair(&pfc, G1_gen);
-        cout << "  -> TA generated a public key in G1 and a secret key in Z_p." << endl;
-        
-        cout << "\n[8] TA certifies the user's derived aggregate verification key user_apk and holder public key P_U..." << endl;
-        // Compute user_apk = X_agg + \sum m_i * Y_agg[i].
-        auto compute_user_apk_start_time = std::chrono::high_resolution_clock::now();
-        G2 user_apk = computeUserApk(apk, messages, &pfc);
-        auto compute_user_apk_end_time = std::chrono::high_resolution_clock::now();
+
+        if (!benchmark_mode) cout << "\n=== TA certification and randomization demo ===" << endl;
+
+        if (!benchmark_mode) cout << "\n[7] Generate the TA key pair..." << endl;
+        CertKeyPair cert_kp = generateCertKeyPair(&pfc, G1_gen);
+        if (!benchmark_mode) cout << "  -> TA public keys are in G1 and secret scalars are in Z_p." << endl;
+
+        if (!benchmark_mode) cout << "\n[8] Derive the verification key and request TA certification..." << endl;
+        auto derive_vk_coordinator_start_time = std::chrono::steady_clock::now();
+        G2 vk_U = deriveVerificationKey(apk, messages, &pfc);
+        auto derive_vk_coordinator_end_time = std::chrono::steady_clock::now();
         recordExecutionTime(
-            "computeUserApk",
-            std::chrono::duration<double, std::milli>(compute_user_apk_end_time - compute_user_apk_start_time).count()
+            "deriveVkCoordinator",
+            std::chrono::duration<double, std::milli>(derive_vk_coordinator_end_time - derive_vk_coordinator_start_time).count()
         );
 
-        HolderSecret holder = generateHolderSecret(&pfc, G2_gen);
-
-        auto ta_cert_start_time = std::chrono::high_resolution_clock::now();
-        TASignature ta_sig = signUserApk(ta_kp, user_apk, holder.P_U, &pfc, G2_gen);
-        auto ta_cert_end_time = std::chrono::high_resolution_clock::now();
+        if (!benchmark_mode) cout << "  -> The TA certifies (vk_U, pk_U)." << endl;
+        auto certify_start_time = std::chrono::steady_clock::now();
+        CertSignature cert_sig = certifyCredentialBinding(cert_kp, vk_U, holder.pk_U, &pfc, G2_gen);
+        auto certify_end_time = std::chrono::steady_clock::now();
         recordExecutionTime(
-            "TACert",
-            std::chrono::duration<double, std::milli>(ta_cert_end_time - ta_cert_start_time).count()
+            "Certify",
+            std::chrono::duration<double, std::milli>(certify_end_time - certify_start_time).count()
         );
-        cout << "  -> TA creates a randomizable certificate (R, S) for (user_apk, P_U)." << endl;
-        
+        IssuedCredential issued{aggregated_sig, apk, cert_sig};
+        if (!benchmark_mode) cout << "  -> Deliver the aggregate credential, public-key vector, and TA certificate." << endl;
+        if (!benchmark_mode) cout << "  -> The TA certificate is randomizable." << endl;
+
+        auto derive_vk_user_start_time = std::chrono::steady_clock::now();
+        G2 vk_U_user = deriveVerificationKey(issued.aggregate_public_key, messages, &pfc);
+        auto derive_vk_user_end_time = std::chrono::steady_clock::now();
+        recordExecutionTime(
+            "deriveVkUser",
+            std::chrono::duration<double, std::milli>(derive_vk_user_end_time - derive_vk_user_start_time).count()
+        );
+        if (!verifySignature(issued.aggregate_public_key, issued.credential, messages, G2_gen, &pfc, "user") ||
+            !verifyCertificate(cert_kp.pk, vk_U_user, holder.pk_U, issued.certificate, &pfc, G1_gen)) return 1;
+
         Big r_1;
         Big r_2;
-        RandomizedTACredential rand_ta_cred;
+        RandomizedCertificate randomized_cert;
         BlindingResult blinding_result;
-        
-        cout << "\n=== Verifier NIZK Authentication Demo ===" << endl;
-        
-        cout << "\n[10] The verifier creates a key pair for receiving presentations..." << endl;
+
+        if (!benchmark_mode) cout << "\n=== Verifier authentication ===" << endl;
+
+        if (!benchmark_mode) cout << "\n[10] Generate the verifier key pair..." << endl;
         VerifierKeyPair verifier_kp = generateVerifierKeyPair(&pfc, G2_gen);
         string verifier_id = "Verifier-001";
-        string verifier_ctx = verifier_id + "|pk_V=" + encodeG2ForContext(verifier_kp.pk_V)
-            + "|nonce=nonce-001|session=session-ref-001|policy=all-attributes|expiry=expiry-demo";
-        cout << "  -> Verifier " << verifier_id << " generated a key pair over G2." << endl;
-        
-        cout << "\n[11] The verifier sends a NIZK proof of key possession..." << endl;
-        auto verifier_auth_gen_start_time = std::chrono::high_resolution_clock::now();
-        NIZKProof nizk_proof = generateNIZKProof(verifier_ctx, ppHash, verifier_kp, &pfc, G2_gen);
-        auto verifier_auth_gen_end_time = std::chrono::high_resolution_clock::now();
+        string verifier_ctx = verifier_id + "|pk-bound-demo|nonce-001|policy-all-attributes|expiry-demo";
+        if (!benchmark_mode) cout << "  -> Verifier " << verifier_id << " generated a G2 key pair." << endl;
+
+        if (!benchmark_mode) cout << "\n[11] Generate the verifier proof of knowledge..." << endl;
+        auto verifier_auth_gen_start_time = std::chrono::steady_clock::now();
+        NIZKProof nizk_proof = generateNIZKProof(verifier_ctx, verifier_kp, &pfc, G2_gen, pp);
+        auto verifier_auth_gen_end_time = std::chrono::steady_clock::now();
         recordExecutionTime(
             "verifierAuthNIZKGen",
             std::chrono::duration<double, std::milli>(verifier_auth_gen_end_time - verifier_auth_gen_start_time).count()
         );
-        cout << "  -> The verifier sends a session-bound NIZK proof (A, z) to the user." << endl;
-        
-        cout << "\n[12] The user verifies the verifier authentication proof..." << endl;
-        auto verifier_auth_verify_start_time = std::chrono::high_resolution_clock::now();
-        bool nizk_valid = verifyNIZKProof(verifier_ctx, ppHash, verifier_kp.pk_V, nizk_proof, &pfc, G2_gen);
-        auto verifier_auth_verify_end_time = std::chrono::high_resolution_clock::now();
+        if (!benchmark_mode) cout << "  -> Send the context-bound proof (A, z) to the holder." << endl;
+
+        if (!benchmark_mode) cout << "\n[12] Verify the verifier proof..." << endl;
+        auto verifier_auth_verify_start_time = std::chrono::steady_clock::now();
+        bool nizk_valid = verifyNIZKProof(verifier_ctx, verifier_kp.pk_V, nizk_proof, &pfc, G2_gen, pp);
+        auto verifier_auth_verify_end_time = std::chrono::steady_clock::now();
         recordExecutionTime(
             "verifierAuthNIZKVerify",
             std::chrono::duration<double, std::milli>(verifier_auth_verify_end_time - verifier_auth_verify_start_time).count()
         );
         if (nizk_valid) {
-            cout << ANSI_GREEN << "  -> [OK] Verifier NIZK accepted; the user confirmed that " << verifier_id << " holds the corresponding secret key." << ANSI_RESET << endl;
-            cout << "  -> The user proceeds to present the blinded credential to this verifier..." << endl;
+            if (!benchmark_mode) cout << ANSI_GREEN << "  -> Proof of knowledge accepted for " << verifier_id << "." << ANSI_RESET << endl;
+            if (!benchmark_mode) cout << "  -> The holder proceeds to blinding." << endl;
         } else {
-            cout << ANSI_RED << "  -> [FAIL] Verifier NIZK rejected; the user refuses to present the credential." << ANSI_RESET << endl;
-            return -1; // abort execution
+            if (!benchmark_mode) cout << ANSI_RED << "  -> Verifier authentication failed." << ANSI_RESET << endl;
+            return -1;
         }
 
-        auto present_total_start_time = std::chrono::high_resolution_clock::now();
-        r_1 = randomNonZeroScalar(pfc);
-        r_2 = randomNonZeroScalar(pfc);
-        auto randomize_ta_start_time = std::chrono::high_resolution_clock::now();
-        rand_ta_cred = randomizeTACredential(user_apk, holder.P_U, ta_sig, r_2, &pfc);
-        auto randomize_ta_end_time = std::chrono::high_resolution_clock::now();
-        recordExecutionTime(
-            "randomizeTACredential",
-            std::chrono::duration<double, std::milli>(randomize_ta_end_time - randomize_ta_start_time).count()
-        );
+        auto blind_total_start_time = std::chrono::steady_clock::now();
+        r_1 = protocolRandomScalar(&pfc, true);
+        r_2 = protocolRandomScalar(&pfc, true);
+        auto randomize_certificate_start_time = std::chrono::steady_clock::now();
+        randomized_cert = randomizeCertificate(vk_U_user, holder.pk_U, issued.certificate, r_2, &pfc);
+        auto randomize_certificate_end_time = std::chrono::steady_clock::now();
 
-        auto blind_credential_start_time = std::chrono::high_resolution_clock::now();
-        blinding_result = blindCredential(user_apk, holder, aggregated_sig, r_1, r_2, &pfc, G2_gen, verifier_ctx, ppHash);
-        auto blind_credential_end_time = std::chrono::high_resolution_clock::now();
+        auto blind_credential_start_time = std::chrono::steady_clock::now();
+        blinding_result = blindCredential(vk_U_user, holder, issued.credential, r_1, r_2, &pfc, G2_gen, verifier_ctx, pp);
+        auto blind_credential_end_time = std::chrono::steady_clock::now();
+        auto blind_total_end_time = std::chrono::steady_clock::now();
+        recordExecutionTime("blindTotal", std::chrono::duration<double, std::milli>(blind_total_end_time - blind_total_start_time).count());
+        recordExecutionTime("randomizeCertificate", std::chrono::duration<double, std::milli>(randomize_certificate_end_time - randomize_certificate_start_time).count());
         recordExecutionTime(
             "blindCredential",
             std::chrono::duration<double, std::milli>(blind_credential_end_time - blind_credential_start_time).count()
         );
-        cout << "\n[9] The user randomizes/blinds the credential for presentation..." << endl;
-        cout << "  -> The user samples nonzero r_1,r_2 and derives the blinded credential, P'_U, and N_V." << endl;
+        if (!benchmark_mode) cout << "\n[9] Blind the credential and certificate..." << endl;
+        if (!benchmark_mode) cout << "  -> Computed the blinded credential, P'_U, and N_V using r_1 and r_2." << endl;
 
-        cout << "\n[13] The verifier checks the randomized TA certificate..." << endl;
-        bool ta_verify_valid = verifyRandomizedTACredential(ta_kp.pk, rand_ta_cred, &pfc, G1_gen, "standalone");
-        if (ta_verify_valid) {
-            cout << ANSI_GREEN << "  -> [OK] Randomized TA certificate accepted; user_apk_prime is bound to a valid TA certificate." << ANSI_RESET << endl;
+        if (!benchmark_mode) cout << "\n[13] Check the randomized TA certificate..." << endl;
+        bool cert_verify_valid = verifyRandomizedCertificate(cert_kp.pk, randomized_cert, &pfc, G1_gen, "standalone");
+        if (cert_verify_valid) {
+            if (!benchmark_mode) cout << ANSI_GREEN << "  -> Randomized TA certificate verified." << ANSI_RESET << endl;
         } else {
-            cout << ANSI_RED << "  -> [FAIL] Randomized TA certificate rejected." << ANSI_RESET << endl;
+            if (!benchmark_mode) cout << ANSI_RED << "  -> Randomized TA certificate verification failed." << ANSI_RESET << endl;
+            return -1;
         }
-        
-        cout << "\n=== Phase 3: Anonymous Presentation and OR Proof ===" << endl;
-        
-        cout << "\n[14] The user generates an OR proof over the blinded credential..." << endl;
+
+        if (!benchmark_mode) cout << "\n=== Anonymous presentation ===" << endl;
+
+        if (!benchmark_mode) cout << "\n[14] Generate the presentation OR proof..." << endl;
         PresentationPayload or_payload = generatePresentationPayload(
             blinding_result.credential,
-            rand_ta_cred,
+            randomized_cert,
             verifier_kp.pk_V,
             blinding_result.w_U,
             verifier_ctx,
-            ppHash,
             &pfc,
-            G2_gen
+            G2_gen, pp, ""
         );
-        auto present_total_end_time = std::chrono::high_resolution_clock::now();
-        recordExecutionTime(
-            "presentTotal",
-            std::chrono::duration<double, std::milli>(present_total_end_time - present_total_start_time).count()
-        );
-        cout << "  -> The user sends the presentation payload to the verifier without plaintext attributes m." << endl;
-        
-        cout << "\n[15] The verifier checks the OR proof and blinded credential..." << endl;
-        bool or_proof_valid = verifyPresentationPayload(ta_kp.pk, or_payload, &pfc, G1_gen, G2_gen, verifier_kp.pk_V, verifier_ctx, ppHash, "real");
-        if (or_proof_valid) {
-            cout << ANSI_GREEN << "  -> [OK] OR proof accepted; challenge splitting and both branch equations are consistent." << ANSI_RESET << endl;
-            cout << ANSI_GREEN << "  -> The full protocol run completed successfully." << ANSI_RESET << endl;
-        } else {
-            cout << ANSI_RED << "  -> [FAIL] OR proof rejected; data may be inconsistent or tampered with." << ANSI_RESET << endl;
-        }
-        
-        cout << "\n=== Phase 4: Verifier-Side Deniability Simulation ===" << endl;
-        
-        cout << "\n[16] The verifier uses its secret key to simulate a presentation over the same public blinded material..." << endl;
-        PresentationPayload faked_payload;
-        bool simulation_precondition_valid = simulatePresentationPayloadByVerifier(
-            verifier_kp,
-            nizk_proof,
-            blinding_result.credential,
-            rand_ta_cred,
-            verifier_ctx,
-            ppHash,
-            &pfc,
-            G2_gen,
-            faked_payload
-        );
-        cout << "  -> The simulator swaps the proof roles: simulated left branch, real right branch with the verifier secret key." << endl;
-        
-        cout << "\n[17] A third party verifies the simulated transcript..." << endl;
-        bool fake_proof_valid = simulation_precondition_valid && verifyPresentationPayload(ta_kp.pk, faked_payload, &pfc, G1_gen, G2_gen, verifier_kp.pk_V, verifier_ctx, ppHash, "simulated");
-        if (fake_proof_valid) {
-            cout << ANSI_GREEN << "  -> [OK] Simulated proof accepted." << endl;
-            cout << "     Because the verifier can generate an indistinguishable accepted transcript, a third party cannot tell whether the transcript came from the user or from the verifier." << endl;
-            cout << "     This demonstrates deniability for the user." << ANSI_RESET << endl;
-        } else {
-            cout << ANSI_RED << "  -> [FAIL] Simulated proof rejected; implementation error." << ANSI_RESET << endl;
-        }
-        printSummaryTable();
+        if (!benchmark_mode) cout << "  -> The holder sends the presentation payload." << endl;
 
-        // Append each run's inputs and timing records to a separate file.
+        if (!benchmark_mode) cout << "\n[15] Verify the presentation..." << endl;
+        bool or_proof_valid = verifyPresentationPayload(cert_kp.pk, or_payload, &pfc, G1_gen, G2_gen, verifier_kp.pk_V, verifier_ctx, pp, "", "real");
+        if (!or_proof_valid) return 1;
+        if (or_proof_valid) {
+            if (!benchmark_mode) cout << ANSI_GREEN << "  -> Presentation accepted." << ANSI_RESET << endl;
+            if (!benchmark_mode) cout << ANSI_GREEN << "  -> Protocol run completed." << ANSI_RESET << endl;
+        } else {
+            if (!benchmark_mode) cout << ANSI_RED << "  -> Presentation verification failed." << ANSI_RESET << endl;
+        }
+
+        if (!benchmark_mode) cout << "\n=== Verifier simulation ===" << endl;
+
+        if (!benchmark_mode) cout << "\n[16] Generate a proof for the same blinded material using the verifier secret key..." << endl;
+        PresentationPayload faked_payload = simulatePresentationPayloadByVerifier(
+            verifier_kp,
+            blinding_result.credential,
+            randomized_cert,
+            verifier_ctx,
+            &pfc,
+            G2_gen, pp, ""
+        );
+        if (!benchmark_mode) cout << "  -> The verifier simulates the holder branch and proves the verifier branch." << endl;
+
+        if (!benchmark_mode) cout << "\n[17] Check the simulated presentation..." << endl;
+        bool fake_proof_valid = verifyPresentationPayload(cert_kp.pk, faked_payload, &pfc, G1_gen, G2_gen, verifier_kp.pk_V, verifier_ctx, pp, "", "simulated");
+        if (!fake_proof_valid) return 1;
+        if (fake_proof_valid) {
+            if (!benchmark_mode) cout << ANSI_GREEN << "  -> Simulated presentation accepted." << endl;
+            if (!benchmark_mode) cout << "     The verifier can also generate an accepted proof for this material." << endl;
+            if (!benchmark_mode) cout << "     Simulation uses fixed publicly valid blinded material." << ANSI_RESET << endl;
+        } else {
+            if (!benchmark_mode) cout << ANSI_RED << "  -> Simulated presentation verification failed." << ANSI_RESET << endl;
+            return -1;
+        }
+        if (!benchmark_mode) printSummaryTable();
+
+        if (!benchmark_mode) {
         std::ofstream outfile("execution_records.txt", std::ios::app);
         if (outfile.is_open()) {
-            outfile << "========== Run Record ==========\n";
-            outfile << "Input variable - message count (num_messages): " << num_messages << "\n";
-            outfile << "Input variable - other issuer count (num_other_issuers): " << num_other_issuers << "\n";
+            outfile << "========== Run record ==========\n";
+            outfile << "Number of attributes (num_messages): " << num_messages << "\n";
+            outfile << "Number of other real issuers (num_other_issuers): " << num_other_issuers << "\n";
             outfile << "Internal contribution count (q_internal): " << (2 + num_other_issuers) << "\n";
             outfile << "+-----------------------------------------+-------------+\n";
-            outfile << "| Function                     | Time |\n";
+            outfile << "| Function                                | Time         |\n";
             outfile << "+-----------------------------------------+-------------+\n";
             for(const auto& entry : g_execution_times) {
-                outfile << "| " << std::left << std::setw(39) << entry.first 
+                outfile << "| " << std::left << std::setw(39) << entry.first
                         << " | " << std::right << std::setw(8) << std::fixed << std::setprecision(4) << entry.second << " ms |\n";
             }
             outfile << "+-----------------------------------------+-------------+\n";
             outfile << "==================================\n\n";
             outfile.close();
-            std::cout << ANSI_GREEN << "  -> Run record with inputs and timing values was appended to execution_records.txt." << ANSI_RESET << std::endl;
+            if (!benchmark_mode) std::cout << ANSI_GREEN << "  -> Appended timing records to execution_records.txt." << ANSI_RESET << std::endl;
         } else {
-            std::cerr << ANSI_RED << "  -> Could not open execution_records.txt for appending." << ANSI_RESET << std::endl;
+            std::cerr << ANSI_RED << "  -> Could not open execution_records.txt." << ANSI_RESET << std::endl;
+        }
         }
     }
-    
+
+    if (benchmark_mode) {
+        for (const auto& entry : g_execution_times) {
+            std::cout << ANSI_CYAN << "[Time] " << entry.first << " execution time: "
+                      << entry.second << " ms" << ANSI_RESET << std::endl;
+        }
+    }
+
     return 0;
 }

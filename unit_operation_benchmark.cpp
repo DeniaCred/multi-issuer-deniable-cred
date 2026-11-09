@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "Algorithm/pairing_3.h"
+#include "protocol_rng.h"
 
 using Clock = std::chrono::steady_clock;
 
@@ -162,7 +163,8 @@ int main(int argc, char** argv) {
         samples = std::max(3, std::atoi(argv[1]));
     }
 
-    PFC pfc(128);
+    ProtocolRng protocol_rng;
+    PFC pfc(128, protocol_rng.get());
     std::vector<Big> scalars;
     std::vector<std::string> ids;
     scalars.reserve(64);

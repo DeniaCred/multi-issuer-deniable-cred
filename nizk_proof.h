@@ -3,24 +3,22 @@
 
 #include <string>
 #include "Algorithm/pairing_3.h"
+#include "protocol_parameters.h"
 
 using namespace std;
 
-// 1. Verifier key pair
 struct VerifierKeyPair {
     Big sk_V;
     G2 pk_V;   // pk_V = G2_gen * sk_V
 };
 
-// 2. NIZK proof structure
 struct NIZKProof {
-    G2 A;  // Commitment A = g_2^a
-    Big z; // Response z = a + c * sk_V
+    G2 A;
+    Big z;
 };
 
-// Function declarations
 VerifierKeyPair generateVerifierKeyPair(PFC* pfc, const G2& G2_gen);
-NIZKProof generateNIZKProof(const string& ctx, const string& ppHash, const VerifierKeyPair& kp, PFC* pfc, const G2& G2_gen);
-bool verifyNIZKProof(const string& ctx, const string& ppHash, const G2& pk_V, const NIZKProof& proof, PFC* pfc, const G2& G2_gen);
+NIZKProof generateNIZKProof(const string& ctx, const VerifierKeyPair& kp, PFC* pfc, const G2& G2_gen, const ProtocolParameters& pp);
+bool verifyNIZKProof(const string& ctx, const G2& pk_V, const NIZKProof& proof, PFC* pfc, const G2& G2_gen, const ProtocolParameters& pp);
 
 #endif // NIZK_PROOF_H

@@ -1,5 +1,6 @@
 import argparse
 import csv
+import hashlib
 import json
 import platform
 import random
@@ -8,13 +9,15 @@ import subprocess
 import sys
 import time
 import statistics
+import zipfile
 from datetime import datetime
 from pathlib import Path
 
 import benchmark_and_plot as bench
+import measurement_checkpoint as checkpoint
 
 
-DEFAULT_RESULTS_DIR = Path("results/issuer_hiding_20260610")
+DEFAULT_RESULTS_DIR = Path("results/issuer_hiding_protocol_v2")
 RESULTS_DIR = DEFAULT_RESULTS_DIR
 K_VALUES = [2, 4, 6, 8, 10, 12, 16, 20, 24, 30]
 Q_AXIS_OTHER_ISSUERS = [1, 3, 6, 8, 10, 14, 18, 22]
@@ -32,6 +35,74 @@ LINUX_MIRACL_MACROS = {
     "MR_LBITS": "64",
     "MR_CPP": "",
 }
+
+PROVENANCE_FILES = [
+    "main_multi_issuer.cpp", "multi_issuer.cpp", "multi_issuer.h",
+    "coordinator_certification.cpp", "coordinator_certification.h",
+    "nizk_proof.cpp", "nizk_proof.h", "or_proof.cpp", "or_proof.h",
+    "protocol_parameters.h", "protocol_rng.h", "utils.h",
+    "unit_operation_benchmark.cpp", "benchmark_and_plot.py",
+    "run_issuer_hiding_measurements.py", "Algorithm/bn_pair.cpp",
+    "Algorithm/pairing_3.h", "Algorithm/mirdef.hpp", "Algorithm/mirdef.h",
+    "Makefile", "Algorithm/Makefile", "Algorithm/MIRACL/mirdef.h", "Algorithm/MIRACL/mirdef.hpp",
+    "Algorithm/MIRACL/linux64_cpp", "Algorithm/MIRACL/linux64_cpp_BN", "run_unit_benchmark.py",
+    "Algorithm/MIRACL/Makefile",
+    "estimate_issuer_hiding_baselines.py", "apply_theoretical_formulas.py", "render_chapter7_issuer_hiding_figures.py",
+    "measurement_checkpoint.py", "tests/test_measurement_checkpoint.py",
+    "tests/test_benchmark_records.py", "tests/protocol_regression.cpp",
+]
+
+def _sha256(path):
+    if not path.is_file(): return None
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+def collect_build_provenance(args, base_dir=Path(".")):
+    base_dir = Path(base_dir)
+    source_files = {name: _sha256(base_dir / name) for name in PROVENANCE_FILES}
+    source_suffixes = {".c", ".cc", ".cpp", ".h", ".hpp", ".py"}
+    for folder in (base_dir, base_dir / "Algorithm" / "MIRACL", base_dir / "tests"):
+        if not folder.exists():
+            continue
+        for path in folder.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in source_suffixes:
+                continue
+            rel = str(path.relative_to(base_dir)).replace("\\", "/")
+            if any(part in {".git", "build", "__pycache__", ".pytest_cache"} for part in Path(rel).parts):
+                continue
+            source_files[rel] = _sha256(path)
+    def binary_hash(value):
+        path = Path(value); return _sha256(path if path.is_absolute() else base_dir / path)
+    binaries = {"main_executable": binary_hash(args.main_executable), "unit_executable": binary_hash(args.unit_executable), "Algorithm/miracl.a": _sha256(base_dir / "Algorithm/miracl.a")}
+    try:
+        result = subprocess.run(["g++", "--version"], capture_output=True, text=True, check=False)
+        compiler = result.stdout.splitlines()[0] if result.returncode == 0 and result.stdout.splitlines() else None
+    except (OSError, IndexError): compiler = None
+    try:
+        head_result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=base_dir, capture_output=True, text=True, check=False)
+        status_result = subprocess.run(["git", "status", "--porcelain"], cwd=base_dir, capture_output=True, text=True, check=False)
+        git_head = head_result.stdout.strip() if head_result.returncode == 0 else None
+        dirty = bool(status_result.stdout.strip()) if status_result.returncode == 0 else None
+    except OSError:
+        git_head, dirty = None, None
+    commands = build_command_argv(args)
+    library_sources = {}
+    for folder in (base_dir / "Algorithm" / "MIRACL",):
+        if folder.exists():
+            for path in sorted(folder.rglob("*")):
+                if path.is_file() and path.suffix.lower() in {".c", ".cc", ".cpp", ".h", ".hpp"}:
+                    library_sources[str(path.relative_to(base_dir)).replace("\\", "/")] = _sha256(path)
+    return {"source_sha256": source_files, "library_source_sha256": library_sources, "binary_sha256": binaries, "git_head": git_head, "git_dirty": dirty, "compiler": compiler, "configured_compile_commands": commands, "execution_status": "skipped" if args.skip_build else "executed", "miracl_optimization": "Algorithm/MIRACL/Makefile has no -O option on its g++ -c -m64 -fPIC commands; protocol executable uses -O2", "binary_source_match": "unverified" if args.skip_build else "built_this_run", "status_reason": "skip-build: existing binaries were hashed; source correspondence was not verified" if args.skip_build else "binaries built in this run"}
+
+def build_command_argv(args):
+    return [
+        ["make", "-C", "Algorithm"],
+    ["g++", "-std=c++11", "-O2", "-DMIRACL_DISABLE_PAIRING_DIAGNOSTICS", "-o", str(args.main_executable), "main_multi_issuer.cpp", "multi_issuer.cpp", "coordinator_certification.cpp", "nizk_proof.cpp", "or_proof.cpp", "Algorithm/bn_pair.cpp", "Algorithm/miracl.a", "-w"],
+        ["g++", "-std=c++11", "-O2", "-DMIRACL_DISABLE_PAIRING_DIAGNOSTICS", "-o", str(args.unit_executable), "unit_operation_benchmark.cpp", "Algorithm/bn_pair.cpp", "Algorithm/miracl.a", "-w"],
+    ]
 
 
 def iso_now():
@@ -92,6 +163,19 @@ SENTINEL_COLUMNS = [
     "max_relative_deviation",
     "excluded",
 ]
+
+ACTIVE_MEASUREMENT_COMPONENTS = (
+    "issueCredential", "aggregatePublicKeys",
+    "verifySignature_coordinator", "deriveVkCoordinator", "Certify",
+    "deriveVkUser", "verifySignature_user", "CertVerify_original",
+    "CertVerify_standalone", "verifierAuthNIZKGen", "verifierAuthNIZKVerify",
+    "blindTotal", "randomizeCertificate", "blindCredential",
+    "presentProof", "CertVerify_real", "verifyBlindedAggregateCredential_real",
+    "verifyORProof_real", "verifyPresentationPayload_total_real",
+    "simulatePresentationPayloadByVerifier", "CertVerify_simulated",
+    "verifyBlindedAggregateCredential_simulated", "verifyORProof_simulated",
+    "verifyPresentationPayload_total_simulated",
+)
 
 
 def csv_write(path, columns, rows):
@@ -211,41 +295,14 @@ def build_binaries(args):
             validate_miracl_build()
         return
     ensure_linux_runtime()
-    run_command(["make", "-C", "Algorithm"])
+    commands = build_command_argv(args)
+    run_command(commands[0])
     if not args.skip_miracl_check:
         validate_miracl_build()
     Path(args.main_executable).parent.mkdir(parents=True, exist_ok=True)
     Path(args.unit_executable).parent.mkdir(parents=True, exist_ok=True)
-    run_command(
-        [
-            "g++",
-            "-std=c++11",
-            "-O2",
-            "-o",
-            args.main_executable,
-            "main_multi_issuer.cpp",
-            "multi_issuer.cpp",
-            "trusted_authority.cpp",
-            "nizk_proof.cpp",
-            "or_proof.cpp",
-            "Algorithm/bn_pair.cpp",
-            "Algorithm/miracl.a",
-            "-w",
-        ]
-    )
-    run_command(
-        [
-            "g++",
-            "-std=c++11",
-            "-O2",
-            "-o",
-            args.unit_executable,
-            "unit_operation_benchmark.cpp",
-            "Algorithm/bn_pair.cpp",
-            "Algorithm/miracl.a",
-            "-w",
-        ]
-    )
+    run_command(commands[1])
+    run_command(commands[2])
 
 
 def experiment_jobs(args):
@@ -316,6 +373,45 @@ def build_measurement_points(args):
     add_point(30, 22, max_job)
 
     return [points_by_key[key] for key in sorted(points_by_key)]
+
+
+def load_or_create_schedule(args, points, schedule_path):
+    schedule_config = {
+        "point_ids": [point["point_id"] for point in points],
+        "warmup": args.warmup,
+        "batches": args.batches,
+        "runs": args.runs,
+        "random_seed": args.random_seed,
+        "randomize_order": args.randomize_order,
+    }
+    schedule_fingerprint = checkpoint.fingerprint(schedule_config)
+    schedule_path = Path(schedule_path)
+    if schedule_path.exists():
+        schedule = json.loads(schedule_path.read_text(encoding="utf-8"))
+        if schedule.get("fingerprint") != schedule_fingerprint:
+            raise ValueError("Saved measurement schedule does not match the requested configuration")
+        return schedule
+    rng = random.Random(args.random_seed)
+    warmup_order = []
+    for _ in range(args.warmup):
+        order = list(schedule_config["point_ids"])
+        if args.randomize_order:
+            rng.shuffle(order)
+        warmup_order.append(order)
+    base_runs, remainder = divmod(args.runs, args.batches)
+    batch_sizes = [base_runs + (1 if index < remainder else 0) for index in range(args.batches)]
+    batch_order = []
+    for _ in batch_sizes:
+        order = list(schedule_config["point_ids"])
+        if args.randomize_order:
+            rng.shuffle(order)
+        batch_order.append(order)
+    schedule = {"fingerprint": schedule_fingerprint, **schedule_config, "warmup_order": warmup_order, "batch_order": batch_order}
+    schedule_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = schedule_path.with_name(schedule_path.name + ".tmp")
+    temporary.write_text(json.dumps(schedule, ensure_ascii=True, indent=2), encoding="utf-8")
+    temporary.replace(schedule_path)
+    return schedule
 
 
 def point_key_from_row(row):
@@ -484,10 +580,43 @@ def run_protocol_job(args, job):
 def run_interleaved_protocol(args):
     run_started_at = iso_now()
     points = build_measurement_points(args)
-    rng = random.Random(args.random_seed)
+    schedule_path = RESULTS_DIR / "schedule.json"
+    schedule_data = load_or_create_schedule(args, points, schedule_path)
+    checkpoint_path = RESULTS_DIR / "batch_checkpoint.json"
+    required_components = ACTIVE_MEASUREMENT_COMPONENTS
+    provenance = args.frozen_provenance or {}
+    checkpoint_provenance = {
+        key: provenance.get(key)
+        for key in ("source_sha256", "library_source_sha256", "binary_sha256", "compiler", "configured_compile_commands")
+    }
+    checkpoint_config = {
+        "build_provenance": checkpoint_provenance,
+        "parameters": [(point["num_attrs"], point["num_other_issuers"]) for point in points],
+        "runs": args.runs, "warmup": args.warmup, "batches": args.batches,
+        "randomize_order": args.randomize_order, "cooldown_seconds": args.cooldown_seconds,
+        "trim_percent": bench.DEFAULT_TRIM_PERCENT,
+        "batch_trim_percent": bench.BATCH_TRIM_PERCENT,
+        "sentinel": (args.sentinel_k, args.sentinel_other_issuers, args.sentinel_component, args.sentinel_max_relative_deviation),
+        "random_seed": args.random_seed,
+        "required_components": list(required_components),
+    }
+    base_runs, remainder = divmod(args.runs, args.batches)
+    batch_sizes = [base_runs + (1 if index < remainder else 0) for index in range(args.batches)]
+    checkpoint_data = checkpoint.load_checkpoint(
+        checkpoint_path, checkpoint.fingerprint(checkpoint_config),
+        expected_points=points, expected_runs={i + 1: size for i, size in enumerate(batch_sizes)},
+        required_components=required_components,
+    )
+    checkpoint_data.setdefault("warmup_completed", [])
+    checkpoint_data.setdefault("interruption_history", [])
+    checkpoint.save_state(checkpoint_path, checkpoint_data)
+    points_by_id = {point["point_id"]: point for point in points}
 
     def run_one(point, run_id, batch_id=1, batch_run_id=None):
-        records = bench.run_protocol(args.main_executable, point["num_attrs"], point["num_other_issuers"])
+        execution_cwd = RESULTS_DIR / "execution"
+        execution_cwd.mkdir(parents=True, exist_ok=True)
+        records = bench.run_protocol(args.main_executable, point["num_attrs"], point["num_other_issuers"], benchmark_mode=True, cwd=execution_cwd)
+        records = [record for record in records if record["component"] in ACTIVE_MEASUREMENT_COMPONENTS]
         return bench.build_rows(
             records,
             "OurScheme",
@@ -499,41 +628,66 @@ def run_interleaved_protocol(args):
             batch_run_id=batch_run_id,
         )
 
-    if args.warmup:
+    if args.warmup and not checkpoint_data["complete_batches"]:
         print(f"\nWarming {len(points)} unique parameter points with {args.warmup} runs per point")
-        warmup_points = list(points)
-        for warmup_run in range(1, args.warmup + 1):
-            if args.randomize_order:
-                rng.shuffle(warmup_points)
+        completed_warmups = set(checkpoint_data.get("warmup_completed", []))
+        for warmup_run, point_ids in enumerate(schedule_data["warmup_order"], start=1):
+            warmup_points = [points_by_id[point_id] for point_id in point_ids]
             for point in warmup_points:
-                run_one(point, run_id=warmup_run, batch_id=0, batch_run_id=warmup_run)
+                warmup_id = f"{warmup_run}:{point['point_id']}"
+                if warmup_id in completed_warmups:
+                    continue
+                try:
+                    run_one(point, run_id=warmup_run, batch_id=0, batch_run_id=warmup_run)
+                except BaseException as exc:
+                    checkpoint_data = checkpoint.save_interrupted_batch(
+                        checkpoint_path, checkpoint_data, 0,
+                        {"stage": "warmup", "warmup_run": warmup_run, "point_id": point["point_id"], "error": repr(exc)},
+                    )
+                    raise
+                checkpoint_data["warmup_completed"].append(warmup_id)
+                completed_warmups.add(warmup_id)
+                checkpoint.save_state(checkpoint_path, checkpoint_data)
 
-    base_runs, remainder = divmod(args.runs, args.batches)
-    batch_sizes = [base_runs + (1 if index < remainder else 0) for index in range(args.batches)]
-    raw_rows = []
+    raw_rows = [row for batch in checkpoint_data["complete_batches"].values() for row in batch]
     print(
         f"\nRunning {len(points)} unique parameter points in {args.batches} interleaved batches "
         f"({args.runs} measured runs per point)"
     )
     for batch_id, batch_runs in enumerate(batch_sizes, start=1):
-        batch_points = list(points)
-        if args.randomize_order:
-            rng.shuffle(batch_points)
+        if str(batch_id) in checkpoint_data["complete_batches"]:
+            print(f"\nSkipping complete checkpointed batch {batch_id}/{args.batches}")
+            continue
+        batch_points = [points_by_id[point_id] for point_id in schedule_data["batch_order"][batch_id - 1]]
         print(f"\nBatch {batch_id}/{args.batches}: {batch_runs} measured runs per unique parameter point")
-        for point_index, point in enumerate(batch_points, start=1):
-            print(
-                f"  point {point_index}/{len(batch_points)} "
-                f"k={point['num_attrs']}, q_internal={point['q_internal']}"
-            )
-            for batch_run_id in range(1, batch_runs + 1):
-                run_id = sum(batch_sizes[: batch_id - 1]) + batch_run_id
-                raw_rows.extend(run_one(point, run_id=run_id, batch_id=batch_id, batch_run_id=batch_run_id))
+        batch_rows = []
+        current_point = None
+        current_run_id = None
+        try:
+            for point_index, point in enumerate(batch_points, start=1):
+                current_point = point["point_id"]
+                print(
+                    f"  point {point_index}/{len(batch_points)} "
+                    f"k={point['num_attrs']}, q_internal={point['q_internal']}"
+                )
+                for batch_run_id in range(1, batch_runs + 1):
+                    run_id = sum(batch_sizes[: batch_id - 1]) + batch_run_id
+                    current_run_id = run_id
+                    batch_rows.extend(run_one(point, run_id=run_id, batch_id=batch_id, batch_run_id=batch_run_id))
+            checkpoint.validate_batch(batch_rows, points, batch_runs, required_components, batch_id)
+            checkpoint_data = checkpoint.save_complete_batch(checkpoint_path, checkpoint_data, batch_id, batch_rows)
+            raw_rows.extend(batch_rows)
+            write_manifest(manifest_data(args, "running", run_started_at))
+        except BaseException as exc:
+            context = {"point_id": current_point, "run_id": current_run_id, "error": repr(exc)}
+            checkpoint_data = checkpoint.save_interrupted_batch(checkpoint_path, checkpoint_data, batch_id, context, batch_rows)
+            raise
         print(f"  completed batch {batch_id}/{args.batches}")
         if args.cooldown_seconds and batch_id < args.batches:
             print(f"  cooling down for {args.cooldown_seconds:g} seconds before next batch")
             time.sleep(args.cooldown_seconds)
 
-    raw_rows = [row for row in raw_rows if row["component"] in bench.COMPONENT_ORDER]
+    raw_rows = [row for row in raw_rows if row["component"] in ACTIVE_MEASUREMENT_COMPONENTS]
     sentinel_report = build_sentinel_batch_report(
         raw_rows,
         sentinel_k=args.sentinel_k,
@@ -643,6 +797,12 @@ def build_wide_rows(summary_rows):
 def run_unit_benchmark(args):
     if args.skip_unit:
         return
+    output_xlsx = RESULTS_DIR / "unit_costs_30samples.xlsx"
+    if output_xlsx.exists():
+        if (RESULTS_DIR / "batch_checkpoint.json").exists():
+            print("Reusing existing unit benchmark workbook during checkpoint resume")
+            return
+        raise FileExistsError(f"Refusing to overwrite existing unit benchmark output: {output_xlsx}")
     run_command(
         [
             sys.executable,
@@ -652,7 +812,7 @@ def run_unit_benchmark(args):
             "--executable",
             args.unit_executable,
             "--output-xlsx",
-            RESULTS_DIR / "unit_costs_30samples.xlsx",
+            output_xlsx,
         ]
     )
 
@@ -687,15 +847,45 @@ def manifest_data(args, status, started_at, finished_at=None):
         "issuer_hiding_baselines.csv",
         "issuer_hiding_comparison_ready.xlsx",
         "sentinel_batches.csv",
+        "batch_checkpoint.json",
+        "schedule.json",
+        "preparation/source_snapshot.json",
+        "preparation/source_build_snapshot.zip",
     ]
     output_files.extend(f"{job['experiment_id']}.xlsx" for job in experiment_jobs(args))
+    checkpoint_path = RESULTS_DIR / "batch_checkpoint.json"
+    checkpoint_state = json.loads(checkpoint_path.read_text(encoding="utf-8")) if checkpoint_path.exists() else {"complete_batches": {}, "interrupted_batch": None}
+    completed_batches = checkpoint_state.get("complete_batches", {})
+    completed_points = max(1, len(build_measurement_points(args)))
+    completed_runs = sum(len(rows) for rows in completed_batches.values()) // max(1, len(ACTIVE_MEASUREMENT_COMPONENTS) * completed_points)
     return {
         "status": status,
+        "protocol_version": "multi-issuer-deniable-cred-v2",
+        "timing_schema": "protocol-components-checkpoint-v3",
+        "message_input": "empty mu",
+        "metric_definitions": {
+            "issueCredential": "real issuer and one-time DM shares plus signature aggregation; excludes key generation and public-key aggregation",
+            "aggregatePublicKeys": "separate aggregate public-key-vector computation",
+            "verifySignature_coordinator": "coordinator aggregate-credential verification",
+            "Certify": "TA certification only; excludes TAKeyGen",
+            "verifySignature_user": "user aggregate-credential verification",
+            "CertVerify_standalone": "standalone randomized TA certificate verification",
+            "blindTotal": "two-exponent credential and certificate randomization, including w_U and N_V",
+            "presentProof": "OR-proof generation only",
+            "presentTotal": "historical mixed presentation timer; incompatible with presentProof",
+            "verifyPresentationPayload_total_real": "full real-presentation Verify: randomized certificate, blinded credential, and OR proof",
+            "simulatePresentationPayloadByVerifier": "SimPresent on the same blinded public material C",
+        },
         "started_at": started_at,
         "finished_at": finished_at,
+        "build_provenance": getattr(args, "frozen_provenance", None),
         "runs": args.runs,
         "warmup_runs": args.warmup,
         "batches": args.batches,
+        "completed_batches": sorted((int(batch) for batch in completed_batches)),
+        "actual_completed_measured_runs_per_point": completed_runs,
+        "actual_completed_warmup_calls": len(checkpoint_state.get("warmup_completed", [])),
+        "interrupted_batch": checkpoint_state.get("interrupted_batch"),
         "runs_per_batch": args.runs // args.batches if args.runs % args.batches == 0 else None,
         "cooldown_seconds": args.cooldown_seconds,
         "randomize_order": args.randomize_order,
@@ -723,6 +913,7 @@ def manifest_data(args, status, started_at, finished_at=None):
         "new_results_dir": str(RESULTS_DIR),
         "measurement_layout": "interleaved unique parameter points; shared axis points are measured once and reused by labels",
         "output_files": output_files,
+        "required_measurement_components": list(ACTIVE_MEASUREMENT_COMPONENTS),
         "environment": {
             "platform": platform.platform(),
             "python": sys.version.split()[0],
@@ -779,11 +970,76 @@ def write_manifest(data):
 - python: `{data['environment']['python']}`
 - machine: `{data['environment']['machine']}`
 
+## Build provenance
+
+- status: `{(data.get('build_provenance') or {}).get('binary_source_match', 'pending')}`
+- reason: `{(data.get('build_provenance') or {}).get('status_reason', 'pending; provenance is recorded in manifest.json after build')}`
+- MIRACL optimization parameters: unknown unless independently recorded; see `manifest.json` for SHA256 details and configured commands.
+
 ## Notes
 
 {data['notes']}
 """
     (RESULTS_DIR / "manifest.md").write_text(body, encoding="utf-8")
+
+
+def freeze_source_snapshot(provenance, args):
+    snapshot_path = RESULTS_DIR / "preparation" / "source_snapshot.json"
+    archive_path = RESULTS_DIR / "preparation" / "source_build_snapshot.zip"
+    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+    snapshot = {
+        "source_sha256": provenance.get("source_sha256", {}),
+        "library_source_sha256": provenance.get("library_source_sha256", {}),
+        "binary_sha256": provenance.get("binary_sha256", {}),
+        "compiler": provenance.get("compiler"),
+        "configured_compile_commands": provenance.get("configured_compile_commands", []),
+        "miracl_optimization": provenance.get("miracl_optimization"),
+    }
+    for rel, expected_hash in snapshot["source_sha256"].items():
+        if expected_hash is not None and _sha256(Path(rel)) != expected_hash:
+            raise RuntimeError(f"Source changed after provenance collection: {rel}")
+    for rel, expected_hash in snapshot["library_source_sha256"].items():
+        if expected_hash is not None and _sha256(Path(rel)) != expected_hash:
+            raise RuntimeError(f"Library source changed after provenance collection: {rel}")
+    binary_locations = {
+        "main_executable": args.main_executable,
+        "unit_executable": args.unit_executable,
+        "Algorithm/miracl.a": "Algorithm/miracl.a",
+    }
+    for key, value in binary_locations.items():
+        expected_hash = snapshot["binary_sha256"].get(key)
+        path = Path(value)
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        if expected_hash is not None and _sha256(path) != expected_hash:
+            raise RuntimeError(f"Binary/library changed after provenance collection: {key}")
+    if snapshot_path.exists():
+        existing = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        archive_hash = existing.pop("archive_sha256", None)
+        if existing != snapshot or not archive_path.exists():
+            raise RuntimeError("Frozen source/build snapshot differs; use a new activity directory instead of mixing revisions.")
+        if _sha256(archive_path) != archive_hash:
+            raise RuntimeError("Frozen source/build archive hash mismatch")
+        return snapshot_path
+    archive_tmp = archive_path.with_name(archive_path.name + ".tmp")
+    with zipfile.ZipFile(archive_tmp, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("snapshot.json", json.dumps(snapshot, ensure_ascii=True, indent=2))
+        for rel in snapshot["source_sha256"]:
+            source_path = Path(rel)
+            if source_path.is_file():
+                archive.write(source_path, f"source/{rel.replace(chr(92), '/')}")
+        for key, value in (("main_executable", args.main_executable), ("unit_executable", args.unit_executable), ("miracl_archive", "Algorithm/miracl.a")):
+            path = Path(value)
+            if not path.is_absolute():
+                path = Path.cwd() / path
+            if path.is_file():
+                archive.write(path, f"artifacts/{key}")
+    archive_tmp.replace(archive_path)
+    snapshot["archive_sha256"] = _sha256(archive_path)
+    temporary = snapshot_path.with_name(snapshot_path.name + ".tmp")
+    temporary.write_text(json.dumps(snapshot, ensure_ascii=True, indent=2), encoding="utf-8")
+    temporary.replace(snapshot_path)
+    return snapshot_path
 
 
 def build_parser():
@@ -853,15 +1109,30 @@ def main(argv=None):
 
     started_at = iso_now()
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    if (RESULTS_DIR / "batch_checkpoint.json").exists() and not args.skip_build:
+        raise RuntimeError("Checkpoint exists; resume only with --skip-build so the recorded executable and MIRACL archive remain unchanged.")
+    if (RESULTS_DIR / "batch_checkpoint.json").exists() and (RESULTS_DIR / "manifest.json").exists():
+        history_dir = RESULTS_DIR / "attempt_history"
+        history_dir.mkdir(parents=True, exist_ok=True)
+        archived = history_dir / f"manifest-resume-{datetime.now().astimezone().strftime('%Y%m%d-%H%M%S-%f')}.json"
+        archived.write_bytes((RESULTS_DIR / "manifest.json").read_bytes())
     write_manifest(manifest_data(args, "running", started_at))
 
     build_binaries(args)
+    args.frozen_provenance = collect_build_provenance(args, Path("."))
+    freeze_source_snapshot(args.frozen_provenance, args)
+    write_manifest(manifest_data(args, "running", started_at))
     run_unit_benchmark(args)
 
     all_raw_rows = []
     all_summary_rows = []
     if not args.skip_protocol:
-        all_raw_rows, all_summary_rows, sentinel_report = run_interleaved_protocol(args)
+        try:
+            all_raw_rows, all_summary_rows, sentinel_report = run_interleaved_protocol(args)
+        except BaseException:
+            terminal_status = "interrupted" if isinstance(sys.exc_info()[1], KeyboardInterrupt) else "failed"
+            write_manifest(manifest_data(args, terminal_status, started_at, iso_now()))
+            raise
 
         csv_write(RESULTS_DIR / "ours_raw_runs.csv", RAW_COLUMNS, all_raw_rows)
         csv_write(RESULTS_DIR / "ours_summary_long.csv", SUMMARY_COLUMNS, all_summary_rows)
