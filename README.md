@@ -5,6 +5,14 @@ issuer, randomizable TA certification, credential blinding, and an OR proof
 with a verifier-secret branch. The verifier can simulate the proof for fixed
 publicly valid blinded material. See [the protocol description](scheme_description.md).
 
+## Third-party dependency
+
+The prototype uses the [MIRACL Crypto SDK](https://github.com/miracl/MIRACL)
+by MIRACL Ltd. for elliptic-curve arithmetic and bilinear pairings. The
+repository includes MIRACL source files under `Algorithm/` and
+`Algorithm/MIRACL/`. See [Third-Party Notices](THIRD_PARTY_NOTICES.md)
+for the upstream citation and licensing information.
+
 ## Build and test
 
 Use Linux or WSL with a C++11 compiler, GNU Make, Python 3, and pytest.

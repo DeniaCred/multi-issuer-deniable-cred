@@ -1,7 +1,14 @@
 # Third-Party Notices
 
-This repository includes MIRACL-related source files under `Algorithm/` and
-`Algorithm/MIRACL/`.
+## MIRACL Crypto SDK
+
+Upstream software citation: MIRACL Ltd., *MIRACL Crypto SDK (Multiprecision
+Integer and Rational Arithmetic Cryptographic Library)*.
+[Official source repository](https://github.com/miracl/MIRACL).
+
+This repository includes MIRACL source files under `Algorithm/` and
+`Algorithm/MIRACL/`. Individual files retain their original copyright
+and licensing notices.
 
 The MIRACL files are third-party code. Their source headers and upstream
 licensing material identify the MIRACL Crypto SDK as available under the GNU
