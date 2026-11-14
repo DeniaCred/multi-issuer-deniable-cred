@@ -15,9 +15,9 @@ for the upstream citation and licensing information.
 
 ## Build and test
 
-Use Linux or WSL with a C++11 compiler, GNU Make, Python 3, and pytest.
-Figure generation requires pandas and matplotlib. Workbook consolidation
-requires openpyxl.
+Use Linux or WSL with a C++11 compiler, GNU Make, and Python 3.
+The test suite uses pytest, pandas, and matplotlib. Figure generation
+also uses pandas and matplotlib. Workbook consolidation requires openpyxl.
 
 ```bash
 make algorithm
